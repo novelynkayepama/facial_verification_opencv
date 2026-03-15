@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payments - Admin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f1f5f9; }
+h2 { color: #0ea5e9; margin-bottom: 20px; }
+.customer-list { list-style: none; padding: 0; }
+.customer-list li { background: white; margin-bottom: 10px; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.customer-list li a { text-decoration: none; color: #0f172a; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h2>All Customers</h2>
+
+<ul class="customer-list">
+    {% for c in customers %}
+    <li>
+        {% if c.has_payments %}
+            <a href="{{ url_for('view_customer_payments', user_id=c.id) }}">{{ c.full_name }}</a>
+        {% else %}
+            <span style="color: gray;">{{ c.full_name }} (No Payments Yet)</span>
+        {% endif %}
+        <span>{{ c.email }}</span>
+    </li>
+    {% endfor %}
+</ul>
+
+
+</body>
+</html>

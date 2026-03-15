@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Order Receipt</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f6f8;
+        padding: 20px;
+        color: #333;
+    }
+
+    .receipt {
+        background: #ffffff;
+        max-width: 650px;
+        margin: auto;
+        padding: 25px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+    }
+
+    h1 {
+        text-align: center;
+        color: #0ea5e9;
+        margin-bottom: 5px;
+    }
+
+    .brand {
+        text-align: center;
+        font-weight: bold;
+        font-size: 18px;
+        margin-bottom: 20px;
+    }
+
+    .info {
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+
+    .info strong {
+        display: inline-block;
+        width: 140px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        font-size: 14px;
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+
+    th {
+        background-color: #0ea5e9;
+        color: #fff;
+    }
+
+    .total {
+        text-align: right;
+        margin-top: 15px;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .footer {
+        margin-top: 25px;
+        font-size: 13px;
+        text-align: center;
+        color: #555;
+    }
+</style>
+</head>
+
+<body>
+<div class="receipt">
+    <h1>🧾 Order Receipt</h1>
+    <div class="brand">GREATER RJ</div>
+
+    <div class="info">
+        <strong>Order ID:</strong> {{ order.order_id }}<br>
+        <strong>Customer:</strong> {{ order.full_name }}<br>
+        <strong>Email:</strong> {{ order.email }}<br>
+        <strong>Date:</strong> {{ order.created_at }}
+    </div>
+
+    <table>
+        <tr>
+            <th>Appliance</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Qty</th>
+            <th>Subtotal</th>
+        </tr>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.appliance_name }}</td>
+            <td>{{ item.category }}</td>
+            <td>₱{{ "%.2f"|format(item.price) }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₱{{ "%.2f"|format(item.subtotal) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="total">
+        Total Amount: ₱{{ "%.2f"|format(total_amount) }}
+    </div>
+
+    <div class="footer">
+        Thank you for your purchase! <br>
+        This receipt was generated automatically by the system.
+    </div>
+</div>
+</body>
+</html>

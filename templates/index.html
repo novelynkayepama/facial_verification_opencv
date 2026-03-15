@@ -1,0 +1,307 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Appliance Loan System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  
+</head>
+
+
+
+
+<body>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<header class="navbar">
+    <div class="nav-container">
+
+        <div class="nav-left">
+            <span class="logo">WELCOME!</span>
+        </div>
+
+        <div class="nav-links">
+            <a href="{{ url_for('index1') }}">Home</a>
+            <a href="#appliances">Appliances</a>
+            <a href="{{ url_for('cart') }}" class="cart-link">
+                🛒 Cart <span class="cart-count">{{ cart_count }}</span>
+            </a>
+        </div>
+
+        <div class="nav-right">
+            {% if session.get("user_id") %}
+                <span class="welcome">Hi, {{ session.get("user_name") }}</span>
+                <a href="{{ url_for('logout') }}" class="btn-outline">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="btn-primary">Login</a>
+            {% endif %}
+        </div>
+
+    </div>
+</header>
+
+
+
+<!-- APPLIANCES SECTION -->
+ <section class="appliance-banner">
+    <img src="{{ url_for('static', filename='uploads/appliances/logoo.png') }}"
+         alt="Appliance Banner">
+</section>
+
+<section class="appliances" id="appliances">
+    <h2>Available Appliances</h2>
+ <div class="filter-wrapper">
+    <div class="filter-bar">
+
+        <!-- Category -->
+        <div class="filter-item">
+            <label>Category</label>
+            <select id="categoryFilter">
+                <option value="">All</option>
+                <option value="tv">TV</option>
+                <option value="refrigerator">Refrigerator</option>
+                <option value="washing machine">Washing Machine</option>
+                <option value="aircon">Aircon</option>
+            </select>
+        </div>
+
+        <!-- Budget -->
+        <div class="filter-item">
+            <label>Budget (₱)</label>
+            <div class="budget-range">
+                <input type="number" id="minPrice" placeholder="Min">
+                <span>–</span>
+                <input type="number" id="maxPrice" placeholder="Max">
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="filter-item search-item">
+            <label>Search</label>
+            <input type="text" id="searchInput" placeholder="Search appliance name...">
+        </div>
+
+        <!-- Button -->
+        <div class="filter-item">
+            <button class="filter-btn" onclick="applyFilters()">Search</button>
+        </div>
+
+    </div>
+</div>
+
+
+    
+</div>
+    <p class="section-subtitle">
+        Browse appliances by category and apply for an installment plan.
+    </p>
+
+    <!-- CATEGORY BLOCK -->
+     
+<!-- PRICE FILTER -->
+
+
+    <!-- CATEGORY FILTER -->
+
+
+<div class="appliance-grid">
+{% for appliance in appliance %}
+    {% if appliance.stock > 0 %}
+    <div class="appliance-card"
+         data-name="{{ appliance.appliance_name|lower }}"
+         data-category="{{ appliance.category|lower }}"
+         data-price="{{ appliance.price }}">
+
+        <h3 class="appliance-name">{{ appliance.appliance_name }}</h3>
+
+        <span class="appliance-category">{{ appliance.category }}</span>
+
+        <p class="appliance-price">
+            ₱{{ "%.2f"|format(appliance.price) }}
+        </p>
+
+        <p class="appliance-stock">
+            {{ appliance.stock }} in stock
+        </p>
+
+        {% if appliance.image %}
+            <img src="{{ url_for('static', filename=appliance.image) }}"
+                 alt="{{ appliance.appliance_name }}">
+        {% endif %}
+
+        <!-- Add to Cart -->
+        <form action="{{ url_for('add_to_cart', appliance_id=appliance.id) }}" method="POST">
+            <button type="submit" class="btn-cart">🛒 Add to Cart</button>
+        </form>
+
+       <form action="{{ url_for('apply_loan', appliance_id=appliance.id) }}" method="GET">
+    <button type="submit" class="btn-loan">
+        Apply for Loan
+    </button>
+</form>
+
+
+    </div>
+    {% endif %}
+{% endfor %}
+</div>
+
+
+
+
+</section>
+
+    <!-- FEATURES -->
+    <section class="features">
+        <h2>System Features</h2>
+        <div class="feature-grid">
+
+            <div class="feature-card">
+                <h3>Flexible Installments</h3>
+                <p>Choose affordable payment terms tailored to your budget.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Facial Verification</h3>
+                <p>Secure applicant identity using live facial recognition.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Automated Loan Processing</h3>
+                <p>Fast approval and tracking of loan applications.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Payment Monitoring</h3>
+                <p>Track installments, balances, and payment history.</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="about">
+        <h2>About the System</h2>
+        <p>
+            The Appliance Loan and Payment Management System is designed to
+            streamline installment-based transactions by integrating secure
+            identity verification, automated loan processing, and efficient
+            payment monitoring for both customers and administrators.
+        </p>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>© 2026 Appliance Loan System | BSIT Capstone Project</p>
+    </footer>
+
+<script>
+let price = 0;
+
+function openLoanModal(id, name, category, appliancePrice, stock) {
+    if (stock <= 0) {
+        alert("This appliance is out of stock.");
+        return;
+    }
+
+    document.getElementById("loanModal").style.display = "flex";
+    document.getElementById("appliance_id").value = id;
+    document.getElementById("appliance_info").value = name + " (" + category + ")";
+    document.getElementById("price_display").value = "₱" + appliancePrice.toFixed(2);
+    price = appliancePrice;
+}
+
+function closeLoanModal() {
+    document.getElementById("loanModal").style.display = "none";
+}
+
+function calculate() {
+    let months = document.getElementById("months").value;
+    if (months) {
+        let monthly = price / months;
+        document.getElementById("monthly").innerText = monthly.toFixed(2);
+        document.getElementById("amount").value = price;
+    }
+}
+</script>
+<div id="loanModal" class="modal-overlay">
+    <div class="modal">
+        <span class="close" onclick="closeLoanModal()">&times;</span>
+
+        <h2>Loan Application</h2>
+
+        <form action="{{ url_for('submit_loan') }}" method="POST">
+            <input type="hidden" name="appliance_id" id="appliance_id">
+            <input type="hidden" name="amount" id="amount">
+
+            <label>Appliance</label>
+            <input type="text" id="appliance_info" readonly>
+
+            <label>Price</label>
+            <input type="text" id="price_display" readonly> 
+
+            <label>Installment Plan</label>
+            <select name="months" id="months" onchange="calculate()" required>
+                <option value="">Select months</option>
+                <option value="6">6 Months</option>
+                <option value="12">12 Months</option>
+                <option value="18">18 Months</option>
+            </select>
+
+            <p><strong>Monthly Payment:</strong> ₱<span id="monthly">0.00</span></p>
+
+            <button type="submit">Apply for Loan</button>
+        </form>
+    </div>
+</div>
+<script>
+function applyFilters() {
+    const searchText = document.getElementById("searchInput").value.toLowerCase();
+    const category = document.getElementById("categoryFilter").value.toLowerCase();
+    const minPrice = parseFloat(document.getElementById("minPrice").value) || 0;
+    const maxPrice = parseFloat(document.getElementById("maxPrice").value) || Infinity;
+
+    const cards = document.querySelectorAll(".appliance-card");
+
+    cards.forEach(card => {
+        const name = card.dataset.name;
+        const cardCategory = card.dataset.category;
+        const price = parseFloat(card.dataset.price);
+
+        let matchesSearch = name.includes(searchText);
+        let matchesCategory = category === "" || cardCategory.includes(category);
+        let matchesPrice = price >= minPrice && price <= maxPrice;
+
+        if (matchesSearch && matchesCategory && matchesPrice) {
+            card.style.display = "block";
+        } else {
+            card.style.display = "none";
+        }
+    });
+}
+</script>
+<script>
+document.getElementById("searchInput").addEventListener("keyup", applyFilters);
+document.getElementById("categoryFilter").addEventListener("change", applyFilters);
+</script>
+<script>
+    async function refreshCartCount() {
+    const res = await fetch('/cart/count');
+    const data = await res.json();
+    document.querySelectorAll('.cart-count').forEach(el => {
+        el.textContent = data.count;
+    });
+}
+</script>
+</body>
+</html>

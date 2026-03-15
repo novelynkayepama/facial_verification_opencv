@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Apply for Loan</title>
+<style>
+body { margin:0; padding:20px; font-family:Arial; background:#f8fafc; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:20px; }
+.card { background:white; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1); padding:15px; transition:0.2s; }
+.card:hover { transform:translateY(-5px); }
+.card img { width:100%; height:160px; object-fit:contain; }
+.card h4 { margin:10px 0 5px; }
+.card p { margin:3px 0; }
+.price { color:#16a34a; font-weight:bold; }
+button { width:100%; margin-top:10px; padding:8px; border:none; border-radius:6px; background:#0ea5e9; color:white; cursor:pointer; }
+button:hover { background:#0284c7; }
+.controls { display:flex; gap:10px; margin-bottom:20px; }
+.controls input, .controls select { padding:10px; border-radius:8px; border:1px solid #d1d5db; width:100%; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <input type="text" id="searchInput" placeholder="🔍 Search appliances...">
+    <select id="categoryFilter">
+        <option value="">All Categories</option>
+        <option value="TV">TV</option>
+        <option value="Refrigerator">Refrigerator</option>
+        <option value="Washing Machine">Washing Machine</option>
+    </select>
+</div>
+
+<h2>🛒 Apply for a Loan</h2>
+
+<div class="grid">
+{% for appliance in appliances %}
+    <div class="card" data-name="{{ appliance.appliance_name | lower }}" data-category="{{ appliance.category | lower }}">
+               {% if appliance.image %}
+            <img src="{{ url_for('static', filename=appliance.image) }}"
+                 alt="{{ appliance.appliance_name }}">
+        {% endif %}
+        <h4>{{ appliance.appliance_name }}</h4>
+      <p class="price">
+₱{{ "%.2f"|format(appliance.loan_price or appliance.price) }}
+</p>
+
+        <p>Stock: {{ appliance.stock }}</p>
+
+        <form action="{{ url_for('apply_loan', appliance_id=appliance.id) }}" method="GET">
+            <button>Apply for Loan</button>
+        </form>
+    </div>
+{% endfor %}
+</div>
+
+<script>
+const searchInput = document.getElementById("searchInput");
+const categoryFilter = document.getElementById("categoryFilter");
+const cards = document.querySelectorAll(".card");
+
+function filterAppliances(){
+    const search = searchInput.value.toLowerCase();
+    const category = categoryFilter.value.toLowerCase();
+
+    cards.forEach(card => {
+        const matchName = card.dataset.name.includes(search);
+        const matchCategory = !category || card.dataset.category === category;
+
+        card.style.display = matchName && matchCategory ? "block" : "none";
+    });
+}
+
+searchInput.addEventListener("input", filterAppliances);
+categoryFilter.addEventListener("change", filterAppliances);
+</script>
+
+</body>
+</html>

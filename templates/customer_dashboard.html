@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Customer Dashboard</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+/* ===== Base ===== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    background: #f1f5f9;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+    width: 250px;
+    background: linear-gradient(180deg, #0f172a, #1e293b);
+    color: #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 15px;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.15);
+}
+
+.sidebar h2 {
+    text-align: center;
+    color: #38bdf8;
+    margin-bottom: 25px;
+    font-size: 22px;
+}
+
+/* Section label */
+.sidebar .section {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin: 15px 10px 5px;
+}
+
+/* Buttons */
+.sidebar button {
+    width: 100%;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 12px 15px;
+    margin-bottom: 6px;
+    text-align: left;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    border-radius: 10px;
+    transition: all 0.25s ease;
+}
+
+.sidebar button i {
+    margin-right: 12px;
+    font-size: 16px;
+    width: 20px;
+}
+
+/* Hover + active */
+.sidebar button:hover {
+    background: #1e293b;
+    transform: translateX(5px);
+}
+
+.sidebar button.active {
+    background: #0ea5e9;
+    color: white;
+    box-shadow: 0 0 12px rgba(14,165,233,0.6);
+}
+
+/* Logout */
+.sidebar .logout {
+    margin-top: auto;
+    color: #f87171;
+}
+.sidebar .logout:hover {
+    background: #7f1d1d;
+    color: white;
+}
+
+/* ===== Main Content ===== */
+.main-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #f8fafc;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+iframe.fade-out {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    
+    <h2>Customer Panel</h2>
+
+    <div class="section">Main</div>
+
+    <button class="active" onclick="loadPage('/index1', this)">
+        <i class="fa-solid fa-house"></i> Dashboard
+    </button>
+
+    <button onclick="loadPage('/appliances', this)">
+        <i class="fa-solid fa-tv"></i> Appliances
+    </button>
+<button onclick="loadPage('/customer/apply-loan', this)">
+    <i class="fa-solid fa-hand-holding-dollar"></i> Apply for Loan
+</button>
+
+
+
+     
+
+    <button onclick="loadPage('/payments', this)">
+        <i class="fa-solid fa-credit-card"></i> Payments
+    </button>
+
+    <div class="section">Account</div>
+
+    <button onclick="loadPage('/customer/account', this)">
+        <i class="fa-solid fa-user"></i> My Profile
+    </button>
+
+    <button onclick="loadPage('/customer/history', this)">
+        <i class="fa-solid fa-clock-rotate-left"></i> Balance & History
+    </button>
+
+    
+    <button onclick="loadPage('/account/security', this)">
+        <i class="fa-solid fa-shield-halved"></i> Security
+    </button>
+
+<button onclick="loadPage('/account/emails', this)">
+    <i class="fa-solid fa-envelope"></i> Emails
+</button>
+
+
+    <button class="logout" onclick="window.location.href='/logout'">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+    </button>
+</div>
+
+<!-- CONTENT -->
+<div class="main-content">
+    <iframe id="contentFrame" src="/index1"></iframe>
+</div>
+
+<script>
+function loadPage(url, btn) {
+    const frame = document.getElementById("contentFrame");
+
+    // remove active state
+    document.querySelectorAll(".sidebar button")
+        .forEach(b => b.classList.remove("active"));
+
+    btn.classList.add("active");
+
+    // animate out
+    frame.classList.add("fade-out");
+
+    setTimeout(() => {
+        frame.src = url;
+
+        // animate in after load
+        frame.onload = () => {
+            frame.classList.remove("fade-out");
+        };
+    }, 200);
+}
+</script>
+
+<script>
+function updateCartCount(){
+    fetch("/cart/count")
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("cartCount").innerText = data.count;
+        });
+}
+
+setInterval(updateCartCount, 3000);
+updateCartCount();
+</script>
+
+</body>
+</html>

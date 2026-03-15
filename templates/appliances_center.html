@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Appliances</title>
+
+<style>
+body {
+    margin: 0;
+    padding: 25px;
+    background: #f8fafc;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+h2 {
+    margin-bottom: 15px;
+    color: #0f172a;
+}
+
+/* 🔍 Controls */
+.controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.controls input,
+.controls select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    width: 100%;
+    font-size: 14px;
+}
+
+/* 🧺 Grid */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 22px;
+}
+
+/* 📦 Card */
+.card {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    padding: 16px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+.card img {
+    width: 100%;
+    height: 160px;
+    object-fit: contain;
+    margin-bottom: 10px;
+}
+
+.card h4 {
+    margin: 6px 0;
+    font-size: 16px;
+    color: #020617;
+}
+
+.price {
+    color: #16a34a;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.stock {
+    font-size: 13px;
+    color: #64748b;
+}
+
+/* 🛒 Button */
+.card button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 9px;
+    border: none;
+    border-radius: 8px;
+    background: #0ea5e9;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.card button:hover {
+    background: #0284c7;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🛒 Available Appliances</h2>
+
+<!-- 🔍 Search & Filter -->
+<div class="controls">
+    <input type="text" id="searchInput" placeholder="🔍 Search appliances...">
+
+    <select id="categoryFilter">
+        <option value="">All Categories</option>
+        <option value="tv">TV</option>
+        <option value="refrigerator">Refrigerator</option>
+        <option value="washing machine">Washing Machine</option>
+    </select>
+</div>
+
+<!-- 🧺 Appliance Grid -->
+<div class="grid">
+{% for a in appliances %}
+<div class="card appliance-card"
+     data-name="{{ a.appliance_name|lower }}"
+     data-category="{{ a.category|lower }}">
+
+        {% if a.image %}
+            <img src="{{ url_for('static', filename=a.image) }}"
+                 alt="{{ a.appliance_name }}">
+        {% endif %}
+    <h4>{{ a.appliance_name }}</h4>
+    <p class="price">₱{{ "%.2f"|format(a.price) }}</p>
+    <p class="stock">Stock: {{ a.stock }}</p>
+
+<form action="/add_to_cart/{{ a.id }}" method="post">
+    <button>Add to Cart</button>
+</form>
+
+
+</div>
+{% endfor %}
+</div>
+
+<!-- 🔧 Search + Filter Logic -->
+<script>
+const searchInput = document.getElementById("searchInput");
+const categoryFilter = document.getElementById("categoryFilter");
+const cards = document.querySelectorAll(".appliance-card");
+
+function filterAppliances() {
+    const search = searchInput.value.toLowerCase();
+    const category = categoryFilter.value.toLowerCase();
+
+    cards.forEach(card => {
+        const name = card.dataset.name;
+        const cat = card.dataset.category;
+
+        const matchName = name.includes(search);
+        const matchCategory = !category || cat === category;
+
+        card.style.display = (matchName && matchCategory) ? "block" : "none";
+    });
+}
+
+searchInput.addEventListener("input", filterAppliances);
+categoryFilter.addEventListener("change", filterAppliances);
+</script>
+
+</body>
+</html>

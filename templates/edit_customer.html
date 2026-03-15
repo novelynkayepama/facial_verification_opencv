@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Customer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        /* ===== FLASH MESSAGES ===== */
+        ul {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        ul li {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* ===== FORM STYLING ===== */
+        form {
+            background: white;
+            padding: 25px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+
+        form label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        form input[type="text"],
+        form input[type="email"],
+        form input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            outline: none;
+            font-size: 14px;
+        }
+
+        form input:focus {
+            border-color: #0ea5e9;
+        }
+
+        form button {
+            background-color: #0ea5e9;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        form button:hover {
+            background-color: #0284c7;
+        }
+
+        /* ===== BACK LINK ===== */
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #0ea5e9;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+            color: #0284c7;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Edit Customer</h1>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+        {% for category, message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Edit Customer Form -->
+    <form action="{{ url_for('edit_customer', user_id=customer.id) }}" method="post">
+        <label>Full Name:</label>
+        <input type="text" name="name" value="{{ customer.full_name }}" required>
+
+        <label>Email:</label>
+        <input type="email" name="email" value="{{ customer.email }}" required>
+
+        <label>Contact Number:</label>
+        <input type="text" name="contact_number" value="{{ customer.contact_number }}" required>
+
+        <label>Address:</label>
+        <input type="text" name="address" value="{{ customer.address }}" required>
+
+        <label>Password (leave blank to keep current):</label>
+        <input type="password" name="password">
+
+        <button type="submit"><i class="fa-solid fa-pen-to-square"></i> Update Customer</button>
+    </form>
+
+    <p><a class="back-link" href="{{ url_for('admin_customers') }}"><i class="fa-solid fa-arrow-left"></i> Back to Customers</a></p>
+
+</body>
+</html>

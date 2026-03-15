@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Appliance</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+
+        form {
+            background: white;
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+        }
+
+        img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        button {
+            background: #0ea5e9;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #0284c7;
+        }
+    </style>
+</head>
+<body>
+
+<h2 style="text-align:center;">Edit Appliance</h2>
+
+<form method="POST" enctype="multipart/form-data">
+
+    <!-- CURRENT IMAGE -->
+    <label>Current Image</label>
+   <img src="{{ url_for('static', filename=appliance.image) }}" alt="Appliance Image">
+
+
+    <!-- OPTIONAL NEW IMAGE -->
+    <label>Change Image (optional)</label>
+    <input type="file" name="image">
+
+    <input type="text" name="appliance_name" value="{{ appliance.appliance_name }}" required>
+    <input type="text" name="category" value="{{ appliance.category }}" required>
+    <input type="number" name="price" value="{{ appliance.price }}" required>
+    <input type="number" name="stock" value="{{ appliance.stock }}" required>
+
+    <button type="submit">
+        Save Changes
+    </button>
+</form>
+
+</body>
+</html>

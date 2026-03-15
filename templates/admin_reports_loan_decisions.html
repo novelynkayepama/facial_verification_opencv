@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Applications Report</title>
+
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #eef2f7;
+    margin: 0;
+    padding: 30px;
+    color: #333;
+}
+
+/* ===== REPORT CONTAINER ===== */
+.report-wrapper {
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== MODERN GRADIENT HEADER ===== */
+.company-gradient-header {
+    background: linear-gradient(135deg, #0ea5e9, #1e3a8a);
+    padding: 20px 24px;
+    border-radius: 14px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.company-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.company-logo {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    background: white;
+    padding: 6px;
+    border-radius: 12px;
+}
+
+.company-name {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.report-title {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+/* ===== PRINT BUTTON ===== */
+.print-btn {
+    background: white;
+    color: #0ea5e9;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.print-btn:hover {
+    background: #f1f5f9;
+}
+
+/* ===== FILTER BAR ===== */
+.filter-bar {
+    background: #f8fafc;
+    padding: 14px 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.filter-bar form {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+}
+
+.filter-group label {
+    margin-bottom: 4px;
+    color: #475569;
+    font-weight: 600;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+}
+
+.filter-btn {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.filter-btn:hover {
+    background: #0284c7;
+}
+
+/* ===== SUMMARY CARDS ===== */
+.summary-cards {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.summary {
+    flex: 1;
+    padding: 18px;
+    border-radius: 14px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.summary h3 {
+    font-size: 32px;
+    margin: 0;
+}
+
+.summary p {
+    margin-top: 6px;
+    font-size: 14px;
+}
+
+.summary.approved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.summary.pending {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.summary.denied {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ===== TABLE ===== */
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 10px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.report-table th {
+    background: #0ea5e9;
+    color: white;
+    padding: 10px;
+    text-align: center;
+}
+
+.report-table td {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.report-table tr:hover {
+    background: #f1f5f9;
+    transition: 0.2s;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-approved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.status-denied {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+    body { background:white; }
+    .no-print { display:none !important; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="report-wrapper" id="printArea">
+
+    <!-- ===== MODERN HEADER ===== -->
+    <div class="company-gradient-header">
+
+        <div class="company-left">
+            <!-- Optional Logo -->
+            <img src="{{ url_for('static', filename='uploads/logo.png') }}" class="company-logo">
+
+            <div>
+                <h1 class="company-name">
+                    GREATER RJ APPLIANCE AND TRADING CORPORATION
+                </h1>
+                <p class="report-title">Loan Applications Report</p>
+            </div>
+        </div>
+
+        <button class="print-btn no-print" onclick="window.print()">🖨 Print Report</button>
+
+    </div>
+
+    <!-- ===== FILTER BAR ===== -->
+    <div class="filter-bar no-print">
+        <form method="GET">
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status">
+                    <option value="">All</option>
+                    <option value="Approved" {% if selected_status == 'Approved' %}selected{% endif %}>Approved</option>
+                    <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
+                    <option value="Denied" {% if selected_status == 'Denied' %}selected{% endif %}>Denied</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" name="from_date" value="{{ from_date }}">
+            </div>
+
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" name="to_date" value="{{ to_date }}">
+            </div>
+
+            <button type="submit" class="filter-btn">🔍 Apply Filter</button>
+        </form>
+    </div>
+
+    <!-- ===== SUMMARY CARDS ===== -->
+    <div class="summary-cards">
+        <div class="summary approved">
+            <h3>{{ approved_count }}</h3>
+            <p>Approved Loans</p>
+        </div>
+
+        <div class="summary pending">
+            <h3>{{ pending_count }}</h3>
+            <p>Pending Loans</p>
+        </div>
+
+        <div class="summary denied">
+            <h3>{{ denied_count }}</h3>
+            <p>Denied Loans</p>
+        </div>
+    </div>
+
+    <!-- ===== TABLE ===== -->
+    <table class="report-table">
+        <tr>
+            <th>Loan ID</th>
+            <th>Customer</th>
+            <th>Appliance</th>
+            <th>Amount</th>
+            <th>Months</th>
+            <th>Status</th>
+            <th>Date Applied</th>
+        </tr>
+
+        {% for loan in loans %}
+        <tr>
+            <td>{{ loan.id }}</td>
+            <td>{{ loan.full_name }}</td>
+            <td>{{ loan.appliance_name }}</td>
+            <td>₱{{ '%.2f'|format(loan.amount) }}</td>
+            <td>{{ loan.months }}</td>
+            <td>
+                {% if loan.status == 'Approved' %}
+                    <span class="status-badge status-approved">✔ Approved</span>
+                {% elif loan.status == 'Pending' %}
+                    <span class="status-badge status-pending">⌛ Pending</span>
+                {% else %}
+                    <span class="status-badge status-denied">✖ Denied</span>
+                {% endif %}
+            </td>
+            <td>{{ loan.applied_on }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+</div>
+
+</body>
+</html>

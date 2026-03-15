@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Apply for Loan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Bootstrap CSS & Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+body {
+    background: #f8fafc;
+}
+.modal-container {
+    max-width: 600px;
+    margin: 40px auto;
+}
+.modal-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+h2 { color: #0ea5e9; text-align:center; margin-bottom: 25px; }
+</style>
+</head>
+<body>
+
+<div class="modal-container">
+<div class="modal-card">
+    <h2>Loan Application</h2>
+    <form method="POST" action="{{ url_for('submit_loan') }}">
+        <input type="hidden" name="appliance_id" value="{{ appliance.id }}">
+        <input type="hidden" name="price" value="{{ appliance.price }}">
+
+        <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" name="full_name" placeholder="Enter your full name" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" placeholder="Enter your email" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Mobile</label>
+            <input type="text" class="form-control" name="mobile" placeholder="Enter mobile number" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Occupation</label>
+            <input type="text" class="form-control" name="occupation" placeholder="Enter your occupation" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Monthly Salary</label>
+            <input type="number" class="form-control" name="salary" placeholder="Enter your monthly salary" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Appliance</label>
+            <input type="text" class="form-control" value="{{ appliance.appliance_name }} ({{ appliance.category }})" readonly>
+        </div>
+<!-- Stock & Price Display -->
+<div class="mb-3">
+    <label class="form-label">Stock & Price</label>
+    <input type="text" class="form-control" 
+           value="Stock: {{ appliance.stock }} | Price: ₱{{ '%.2f'|format(appliance.price) }}" readonly>
+</div>
+
+<!-- Hidden inputs for Flask -->
+<input type="hidden" name="amount" id="amount" value="{{ appliance.price }}">
+<input type="hidden" id="price" value="{{ appliance.price }}">
+
+<!-- Select installment months -->
+<div class="mb-3">
+    <label class="form-label">Installment Plan (Months)</label>
+    <select class="form-select" id="months" name="months" onchange="calculateMonthly()" required>
+        <option value="">Select Installment Plan</option>
+        <option value="6">6 Months</option>
+        <option value="12">12 Months</option>
+        <option value="18">18 Months</option>
+    </select>
+</div>
+
+<!-- Monthly Payment Display -->
+<div class="mb-3">
+    <label class="form-label">Monthly Payment</label>
+    <input type="text" class="form-control" id="monthly" value="₱0.00" readonly>
+</div>
+    <button type="submit" class="btn btn-primary w-100">Proceed to Face Verification</button>
+    </form>
+<script>
+function calculateMonthly() {
+    let price = parseFloat(document.getElementById("price").value);
+    let months = parseInt(document.getElementById("months").value);
+
+    if (!isNaN(months) && months > 0) {
+        let monthlyPayment = price / months;
+        document.getElementById("monthly").value = `₱${monthlyPayment.toFixed(2)}`;
+        document.getElementById("amount").value = price.toFixed(2); // hidden input for Flask
+    } else {
+        document.getElementById("monthly").value = "₱0.00";
+        document.getElementById("amount").value = 0;
+    }
+}
+</script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

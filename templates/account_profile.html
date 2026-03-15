@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Profile</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f1f5f9; color: #333; }
+h2 { color: #0ea5e9; margin-bottom: 20px; }
+form { background: #fff; padding: 20px; border-radius: 10px; max-width: 500px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+label { display: block; margin-top: 10px; font-weight: bold; }
+input { width: 100%; padding: 8px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; }
+button { margin-top: 15px; padding: 10px 15px; border: none; border-radius: 6px; background: #0ea5e9; color: white; cursor: pointer; }
+button:hover { background: #0284c7; }
+.flash { padding: 10px; background: #d1fae5; color: #065f46; border-radius: 6px; margin-bottom: 15px; }
+</style>
+</head>
+<body>
+
+<h2>My Profile</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="POST">
+    <label for="full_name">Full Name</label>
+    <input type="text" name="full_name" id="full_name" value="{{ user.full_name }}" required>
+
+    <label for="email">Email</label>
+    <input type="email" name="email" id="email" value="{{ user.email }}" required>
+
+    <label for="password">Password (leave blank to keep current)</label>
+    <input type="password" name="password" id="password">
+
+    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> Update Profile</button>
+</form>
+
+</body>
+</html>

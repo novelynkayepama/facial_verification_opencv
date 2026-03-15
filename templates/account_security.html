@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Account Security</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 20px;
+    background: #f1f5f9;
+    color: #333;
+}
+
+h2 {
+    color: #0ea5e9;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+form {
+    background: #fff;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    max-width: 450px;
+}
+
+form div {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1em;
+    transition: 0.3s;
+}
+
+input[type="password"]:focus {
+    border-color: #0ea5e9;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(14,165,233,0.2);
+}
+
+button {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 1em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #0284c7;
+}
+
+.flash-messages {
+    margin-top: 15px;
+}
+
+.flash-messages li {
+    list-style: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.flash-messages li.success {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.flash-messages li.error {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+</style>
+</head>
+<body>
+
+<h2>
+    <i class="fa-solid fa-shield-halved"></i> Account Security
+</h2>
+
+<form method="POST">
+    <div>
+        <label for="current_password">Current Password:</label>
+        <input type="password" name="current_password" id="current_password" required>
+    </div>
+    <div>
+        <label for="new_password">New Password:</label>
+        <input type="password" name="new_password" id="new_password" required>
+    </div>
+    <div>
+        <label for="confirm_password">Confirm New Password:</label>
+        <input type="password" name="confirm_password" id="confirm_password" required>
+    </div>
+    <button type="submit"><i class="fa-solid fa-lock"></i> Update Password</button>
+</form>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul class="flash-messages">
+      {% for category, message in messages %}
+        <li class="{{ category }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+</body>
+</html>

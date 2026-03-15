@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Notifications</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+}
+h2 {
+    text-align: center;
+    color: #0ea5e9;
+    margin-bottom: 20px;
+}
+.notifications-card {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+.notification-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.notification-item.unread {
+    background-color: #e0f2fe;
+}
+.notification-item:last-child {
+    border-bottom: none;
+}
+.notification-item a {
+    color: #0ea5e9;
+    text-decoration: none;
+}
+.notification-item a:hover {
+    text-decoration: underline;
+}
+.no-notifications {
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+    margin-top: 50px;
+}
+</style>
+</head>
+<body>
+
+<h2>📣 Notifications</h2>
+
+<div class="notifications-card">
+{% if notifications %}
+    {% for n in notifications %}
+    <div class="notification-item {% if n.is_read == 0 %}unread{% endif %}">
+        <span>{{ n.message }}</span>
+        {% if n.is_read == 0 %}
+        <a href="{{ url_for('read_notification', notification_id=n.id) }}">Mark as read</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <p class="no-notifications">You have no notifications.</p>
+{% endif %}
+</div>
+
+</body>
+</html>

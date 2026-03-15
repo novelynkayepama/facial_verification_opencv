@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Loans</title>
+
+<style>
+/* ---------- Global Styles ---------- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #eef2f7;
+    margin: 0;
+    padding: 20px;
+    color: #1f2937;
+}
+
+h1 {
+    margin-bottom: 30px;
+    font-size: 2rem;
+    color: #111827;
+}
+
+/* ---------- Loan Card ---------- */
+.loan-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.loan-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.08);
+}
+
+/* ---------- Loan Header ---------- */
+.loan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.loan-header h3 {
+    font-size: 1.4rem;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---------- Status Labels with Icons ---------- */
+.status {
+    padding: 8px 18px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status.pending { background: #fef3c7; color: #92400e; }
+.status.approved { background: #d1fae5; color: #065f46; }
+.status.denied { background: #fee2e2; color: #991b1b; }
+
+/* ---------- Loan Info Grid ---------- */
+.loan-info {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.loan-info div {
+    font-size: 0.95rem;
+    color: #4b5563;
+}
+
+.loan-info div strong {
+    color: #111827;
+}
+
+/* ---------- Timeline Payment Table ---------- */
+.payment-table {
+    margin-top: 18px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    position: relative;
+}
+
+/* Remove table border style for timeline */
+.payment-table th,
+.payment-table td {
+    padding: 12px 10px;
+    text-align: left;
+    border: none;
+}
+
+/* Timeline line on left */
+.payment-table tr {
+    position: relative;
+}
+
+.payment-table tr::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.payment-table td.timeline {
+    padding-left: 20px;
+    position: relative;
+}
+
+.payment-table td.timeline::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* Payment Status Colors */
+.payment-status.pending { color: #2d14cd; font-weight: bold; }
+.payment-status.paid { color: #16a34a; font-weight: bold; }
+.payment-status.overdue { color: #dc2626; font-weight: bold; }
+
+/* Pay Button */
+.pay-btn {
+    background: transparent;
+    border: 2px solid #3b82f6;
+    color: #3b82f6;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pay-btn:hover {
+    background: #3b82f6;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+/* ---------- Empty State ---------- */
+.empty {
+    background: #ffffff;
+    padding: 50px;
+    text-align: center;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+.empty h3 {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+    color: #111827;
+}
+
+.empty p {
+    font-size: 1rem;
+    color: #6b7280;
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>📄 My Loan Applications</h1>
+
+{% if loans %}
+    {% for loan in loans %}
+    <div class="loan-card">
+
+<div class="loan-header">
+    <h3>
+        {{ loan.appliance_name }}
+    </h3>
+
+    {% if loan.status == 'Approved' %}
+        <span class="status approved">✅ Approved</span>
+    {% elif loan.status == 'Denied' %}
+        <span class="status denied">❌ Denied</span>
+    {% elif loan.status == 'Pending' %}
+        <span class="status pending">⏳ Pending</span>
+    {% endif %}
+</div>
+
+{% if loan.status == 'Approved' %}
+<h4 style="margin-top:15px;">📆 Payment Schedule</h4>
+<table class="payment-table">
+    <tr>
+        <th>Month</th>
+        <th>Amount Due</th>
+        <th>Due Date</th>
+        <th>Status</th>
+        <th>Action</th>
+    </tr>
+
+    {% for p in loan.payments %}
+    <tr>
+        <td class="timeline">{{ p.month_no }}</td>
+        <td>₱{{ "%.2f"|format(p.amount_due) }}</td>
+        <td>{{ p.due_date }}</td>
+        <td class="payment-status {{ p.status }}">{{ p.status|capitalize }}</td>
+        <td>
+            {% if p.status == 'pending' %}
+            <form method="POST" action="/pay/{{ p.id }}">
+                <button class="pay-btn">Mark as Paid</button>
+            </form>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+
+      
+
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty">
+        <h3>No loan applications yet</h3>
+        <p>Apply for a loan to see your status here.</p>
+    </div>
+{% endif %}
+
+</body>
+</html>

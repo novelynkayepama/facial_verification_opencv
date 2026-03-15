@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Facial Verification</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1d2671, #c33764);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card {
+            background: #fff;
+            width: 420px;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            text-align: center;
+            animation: fadeIn 0.6s ease;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        h3 {
+            margin: 18px 0 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid #ddd;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px dashed #aaa;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        video {
+            margin-top: 15px;
+            width: 100%;
+            border-radius: 12px;
+            border: 3px solid #444;
+        }
+
+        button {
+            margin-top: 12px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #uploadBtn {
+            background: #4a6cf7;
+            color: #fff;
+        }
+
+        #uploadBtn:hover {
+            background: #3a5bdc;
+        }
+
+        #captureBtn {
+            background: #27ae60;
+            color: #fff;
+        }
+
+        #captureBtn:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+
+        #captureBtn:not(:disabled):hover {
+            background: #1e9c52;
+        }
+
+        #status {
+            margin-top: 12px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Facial Verification</h1>
+
+    <!-- Upload ID -->
+    <h3>Upload Valid ID</h3>
+    <input type="file" id="idUpload" accept="image/*">
+    <button id="uploadBtn">Upload ID</button>
+
+    <hr>
+
+    <!-- Webcam -->
+    <h3>Live Selfie Verification</h3>
+    <video id="video" autoplay></video>
+    <button id="captureBtn" disabled>Capture Selfie</button>
+
+    <h3 id="status">Please blink to continue…</h3>
+</div>
+
+<script>
+const video = document.getElementById("video");
+const captureBtn = document.getElementById("captureBtn");
+const statusText = document.getElementById("status");
+
+// Start webcam
+navigator.mediaDevices.getUserMedia({video:true})
+    .then(stream => { video.srcObject = stream; });
+
+// -------- Upload ID --------
+document.getElementById("uploadBtn").onclick = async () => {
+    const fileInput = document.getElementById("idUpload");
+    if (fileInput.files.length === 0) { alert("Select an ID first"); return; }
+    const formData = new FormData();
+    formData.append("id_photo", fileInput.files[0]);
+
+    const res = await fetch("/train", { method:"POST", body:formData });
+    const data = await res.json();
+    alert(data.message);
+};
+
+// -------- Blink detection --------
+let blinkDetected = false;
+setInterval(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL("image/jpeg");
+
+    const res = await fetch("/blink_check", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({image:imageData})
+    });
+    const data = await res.json();
+    blinkDetected = data.blinked;
+
+    captureBtn.disabled = !blinkDetected;
+    statusText.textContent = blinkDetected
+        ? "Blink detected! You may capture now."
+        : "Please blink to enable capture…";
+}, 500);
+
+// -------- Capture & verify --------
+captureBtn.onclick = async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL("image/jpeg");
+
+    const form = new FormData();
+    form.append("image_data", imageData);
+
+    const res = await fetch("/verify", { method:"POST", body:form });
+    const data = await res.json();
+    alert(data.message);
+};
+</script>
+
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Appliances</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #1e293b;
+        }
+
+        /* ===== FORM STYLING ===== */
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            max-width: 600px;
+        }
+
+        form input[type="text"],
+        form input[type="number"],
+        form input[type="file"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            outline: none;
+            font-size: 14px;
+        }
+
+        form input:focus {
+            border-color: #0ea5e9;
+        }
+
+        form button {
+            background-color: #0ea5e9;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        form button:hover {
+            background-color: #0284c7;
+        }
+
+        /* ===== TABLE STYLING ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #0ea5e9;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f1f5f9;
+        }
+
+        tr:hover {
+            background-color: #e2e8f0;
+        }
+
+        /* ===== STOCK BADGES ===== */
+        .stock-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .stock-red { background-color: #ef4444; }
+        .stock-orange { background-color: #f59e0b; }
+        .stock-green { background-color: #22c55e; }
+
+        /* ===== ACTION LINKS ===== */
+        .action-link {
+            text-decoration: none;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        .edit-link { color: #0ea5e9; }
+        .delete-link { color: #ef4444; }
+        .history-link { color: #16a34a; }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== FLASH MESSAGES ===== */
+        ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
+        }
+
+        ul li {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .top-actions {
+            margin-bottom: 20px;
+        }
+
+        .top-actions a {
+            background-color: #475569;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .top-actions a:hover {
+            background-color: #334155;
+        }
+.company-header {
+    background: linear-gradient(135deg, #0ea5e9, #1e3a8a);
+    border-radius: 15px;
+    color: white;
+}
+
+.company-logo {
+    width: 55px;
+    height: 55px;
+    object-fit: contain;
+    background: white;
+    padding: 6px;
+    border-radius: 12px;
+}
+
+.company-name {
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 1.1rem;
+}
+
+.company-sub {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    opacity: 0.9;
+}
+
+.system-title {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+    </style>
+</head>
+
+<body>
+
+<h1>Appliance Inventory</h1>
+
+<!-- View All Stock Movements -->
+<div class="top-actions">
+    
+</div>
+
+<!-- List appliances -->
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Stock</th>
+        <th>Actions</th>
+    </tr>
+
+    {% for appliance in appliances %}
+    <tr>
+        <td>{{ appliance.id }}</td>
+        <td>{{ appliance.appliance_name }}</td>
+        <td>{{ appliance.category }}</td>
+        <td>₱{{ "%.2f"|format(appliance.price) }}</td>
+
+        <td>
+            {% if appliance.stock == 0 %}
+                <span class="stock-badge stock-red">{{ appliance.stock }}</span>
+            {% elif appliance.stock <= 5 %}
+                <span class="stock-badge stock-orange">{{ appliance.stock }}</span>
+            {% else %}
+                <span class="stock-badge stock-green">{{ appliance.stock }}</span>
+            {% endif %}
+        </td>
+
+        <td>
+            <a href="{{ url_for('edit_appliance', appliance_id=appliance.id) }}"
+               class="action-link edit-link">
+                <i class="fa-solid fa-pen"></i> Edit
+            </a>
+
+            <a href="{{ url_for('delete_appliance', appliance_id=appliance.id) }}"
+               class="action-link delete-link">
+                <i class="fa-solid fa-trash"></i> Delete
+            </a>
+
+            <a href="{{ url_for('appliance_stock_movements', appliance_id=appliance.id) }}"
+               class="action-link history-link">
+                <i class="fa-solid fa-clock-rotate-left"></i> Stock History
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<!-- Add appliance form -->
+<h2>Add Appliance</h2>
+<form action="/admin/add_appliance" method="POST" enctype="multipart/form-data">
+    <input type="text" name="appliance_name" placeholder="Appliance Name" required>
+    <input type="text" name="category" placeholder="Category" required>
+    <input type="number" step="0.01" name="price" placeholder="Price" required>
+    <input type="number" name="stock" placeholder="Stock" required>
+    <input type="file" name="image" required>
+    <button type="submit">
+        <i class="fa-solid fa-plus"></i> Add Appliance
+    </button>
+</form>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul>
+    {% for category, message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+</body>
+</html>

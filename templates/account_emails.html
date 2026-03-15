@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sent Payment Reminders</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 20px;
+    background: #f1f5f9;
+    color: #333;
+}
+
+h2 {
+    color: #0ea5e9;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-container {
+    overflow-x: auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+th {
+    background: #0ea5e9;
+    color: white;
+    position: sticky;
+    top: 0;
+}
+
+tr:hover {
+    background: #f0f9ff;
+}
+
+.reminder-sent {
+    color: #16a34a;
+    font-weight: bold;
+}
+
+.reminder-pending {
+    color: #b91c1c;
+    font-weight: bold;
+}
+
+button.print-btn {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: 0.3s;
+}
+button.print-btn:hover {
+    background: #0284c7;
+}
+
+@media (max-width: 768px) {
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+    thead tr { display: none; }
+    tr {
+        margin-bottom: 15px;
+        border-bottom: 2px solid #0ea5e9;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f9fafb;
+    }
+    td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+    }
+    td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 15px;
+        width: 45%;
+        font-weight: bold;
+        text-align: left;
+    }
+}
+</style>
+</head>
+<body>
+
+
+    <button class="print-btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+<h2>Sent Payment Reminders</h2>
+
+{% for e in emails %}
+<div style="background:#f0f9ff; padding:15px; border-radius:8px; margin-bottom:15px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+    <pre>{{ e.reminder_email_content }}</pre>
+</div>
+{% else %}
+<p>No emails sent yet.</p>
+{% endfor %}
+
+
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Customers</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h3 {
+            color: #1e293b;
+        }
+
+        /* ===== FLASH MESSAGES ===== */
+        ul {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        ul li {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* ===== FORM STYLING ===== */
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            max-width: 500px;
+        }
+
+        form input[type="text"],
+        form input[type="email"],
+        form input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            outline: none;
+            font-size: 14px;
+        }
+
+        form input:focus {
+            border-color: #0ea5e9;
+        }
+
+        form button {
+            background-color: #0ea5e9;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        form button:hover {
+            background-color: #0284c7;
+        }
+
+        /* ===== TABLE STYLING ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #0ea5e9;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f1f5f9;
+        }
+
+        tr:hover {
+            background-color: #e2e8f0;
+        }
+
+        /* ===== ACTION BUTTONS ===== */
+        a {
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-right: 5px;
+            transition: 0.3s ease;
+        }
+
+        a.delete {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        a.delete:hover {
+            background-color: #b91c1c;
+        }
+
+        a.edit {
+            background-color: #facc15;
+            color: #1e293b;
+        }
+
+        a.edit:hover {
+            background-color: #eab308;
+        }
+
+        /* ===== BACK LINK ===== */
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #0ea5e9;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+            color: #0284c7;
+        }
+    </style>
+</head>
+<body>
+    <h1>Customer Management</h1>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+        {% for category, message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Add Customer Form -->
+    <h3>Add New Customer</h3>
+    <form action="{{ url_for('add_customer') }}" method="post">
+        <input type="text" name="name" placeholder="Full Name" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="text" name="contact_number" placeholder="Contact Number" required>
+        <input type="text" name="address" placeholder="Address" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit"><i class="fa-solid fa-user-plus"></i> Add Customer</button>
+    </form>
+
+    <hr>
+
+    <!-- Customers Table -->
+    <h3>All Customers</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Contact</th>
+            <th>Address</th>
+            <th>Actions</th>
+        </tr>
+        {% for customer in customers %}
+        <tr>
+            <td>{{ customer.id }}</td>
+            <td>{{ customer.full_name }}</td>
+            <td>{{ customer.email }}</td>
+            <td>{{ customer.contact_number }}</td>
+            <td>{{ customer.address }}</td>
+            <td>
+                <a href="{{ url_for('delete_customer', user_id=customer.id) }}" class="delete">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </a>
+                <a href="{{ url_for('edit_customer', user_id=customer.id) }}" class="edit">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

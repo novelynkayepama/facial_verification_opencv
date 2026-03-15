@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>📦 Admin Orders</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f1f5f9; margin: 0; padding: 20px; color: #333; }
+h1 { text-align: center; color: #0ea5e9; margin-bottom: 30px; }
+
+.order-card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 25px; padding: 20px; }
+.order-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+.status { padding: 6px 12px; border-radius: 20px; color: white; font-weight: bold; text-transform: uppercase; font-size: 0.85rem; }
+.status.pending { background: #facc15; color: #000; }
+.status.approved { background: #16a34a; }
+.status.denied { background: #dc2626; }
+
+.order-items table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.order-items th, .order-items td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
+.order-items th { background: #0ea5e9; color: white; }
+.total-row td { font-weight: bold; font-size: 1.05rem; }
+
+.btn { padding: 6px 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-right: 5px; }
+.btn-approve { background: #16a34a; color: white; }
+.btn-deny { background: #dc2626; color: white; }
+
+.flash { margin-bottom: 20px; padding: 10px; border-radius: 8px; }
+.flash-success { background: #bbf7d0; color: #065f46; }
+.flash-error { background: #fecaca; color: #7f1d1d; }
+
+.no-orders { text-align: center; color: #555; margin-top: 50px; font-size: 1.2rem; font-style: italic; }
+.btn-receipt {
+    background: #0ea5e9;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    display: inline-block;
+    margin-top: 12px;
+    transition: background 0.3s ease;
+}
+
+.btn-receipt:hover {
+    background: #0284c7;
+}
+
+</style>
+</head>
+<body>
+
+<h1>📦 All Orders</h1>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if orders %}
+  {% for order in orders %}
+  <div class="order-card">
+    <div class="order-header">
+      <div>
+        <strong>Order #{{ order.order_id }}</strong><br>
+        Customer: {{ order.customer_name }} ({{ order.customer_email }})<br>
+        Date: {{ order.created_at }}
+      </div>
+      <div class="status {{ order.status|lower }}">{{ order.status|capitalize }}</div>
+    </div>
+
+    <div class="order-items">
+      <table>
+        <tr>
+          <th>Appliance Name</th>
+          <th>Category</th>
+          <th>Price</th>
+          <th>Quantity</th>
+          <th>Subtotal</th>
+        </tr>
+        {% for item in order["items"] %}
+        <tr>
+          <td>{{ item.appliance_name }}</td>
+          <td>{{ item.category }}</td>
+          <td>₱{{ "%.2f"|format(item.price) }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>₱{{ "%.2f"|format(item.subtotal) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="4" style="text-align:right;">Total Amount:</td>
+          <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
+        </tr>
+      </table>
+    </div>
+
+ {% if order.status|lower == 'pending' %}
+<form method="POST" action="/admin/orders/{{ order.order_id }}/approve" style="display:inline-block">
+    <button type="submit" class="status approved">
+        <i class="fa-solid fa-check"></i> Approve
+    </button>
+</form>
+
+<form method="POST" action="/admin/orders/{{ order.order_id }}/deny" style="display:inline-block">
+    <button type="submit" class="status denied">
+        <i class="fa-solid fa-xmark"></i> Deny
+    </button>
+</form>
+{% endif %}
+
+{% if order.status|lower == 'approved' %}
+    <a href="{{ url_for('order_receipt', order_id=order.order_id) }}"
+       target="_blank"
+       class="btn-receipt">
+        🧾 View Order Receipt
+    </a>
+{% endif %}
+
+
+
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="no-orders">No orders found.</p>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Account</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a, #2563eb);
+}
+
+.auth-container {
+    width: 380px;
+    padding: 35px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+    color: white;
+    text-align: center;
+}
+
+.auth-container h2 {
+    margin-bottom: 25px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.input-group {
+    position: relative;
+    margin-bottom: 18px;
+}
+
+.input-group i {
+    position: absolute;
+    top: 14px;
+    left: 12px;
+    color: #ccc;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 12px 12px 38px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+}
+
+.input-group input:focus {
+    box-shadow: 0 0 0 2px #60a5fa;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 14px;
+    cursor: pointer;
+    color: #666;
+}
+
+.error-message {
+    color: #f87171;
+    font-size: 13px;
+    margin-top: -12px;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+button:hover {
+    background: #1e40af;
+    transform: translateY(-2px);
+}
+
+.auth-link {
+    margin-top: 18px;
+    font-size: 14px;
+}
+
+.auth-link a {
+    color: #93c5fd;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-link a:hover {
+    text-decoration: underline;
+}
+
+@media(max-width: 420px){
+    .auth-container {
+        width: 90%;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="auth-container">
+    <h2>Create Account</h2>
+
+    <form method="POST" onsubmit="return validatePasswords()">
+        
+        <div class="input-group">
+            <i class="fa fa-user"></i>
+            <input type="text" name="full_name" placeholder="Full Name" required>
+        </div>
+
+        <div class="input-group">
+            <i class="fa fa-envelope"></i>
+            <input type="email" name="email" placeholder="Email Address" required>
+        </div>
+
+        <div class="input-group">
+            <i class="fa fa-phone"></i>
+            <input type="text" name="contact_number" placeholder="Contact Number" required>
+        </div>
+
+        <div class="input-group">
+            <i class="fa fa-home"></i>
+            <input type="text" name="address" placeholder="Address" required>
+        </div>
+
+        <div class="input-group">
+            <i class="fa fa-lock"></i>
+            <input type="password" name="password" id="password" placeholder="Password" required>
+            <i class="fa fa-eye toggle-password" onclick="togglePassword('password', this)"></i>
+        </div>
+
+        <div class="input-group">
+            <i class="fa fa-lock"></i>
+            <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
+            <i class="fa fa-eye toggle-password" onclick="togglePassword('confirm_password', this)"></i>
+        </div>
+
+        <div class="error-message" id="error-message"></div>
+
+        <button type="submit">Sign Up</button>
+    </form>
+
+    <p class="auth-link">
+        Already have an account?
+        <a href="index1">Login here</a>
+    </p>
+</div>
+
+<script>
+function togglePassword(fieldId, icon) {
+    const field = document.getElementById(fieldId);
+    field.type = field.type === "password" ? "text" : "password";
+    icon.classList.toggle("fa-eye");
+    icon.classList.toggle("fa-eye-slash");
+}
+
+function validatePasswords() {
+    const password = document.getElementById("password").value;
+    const confirm = document.getElementById("confirm_password").value;
+    const errorMessage = document.getElementById("error-message");
+
+    if (password !== confirm) {
+        errorMessage.textContent = "Passwords do not match!";
+        return false; // prevent form submission
+    }
+    errorMessage.textContent = "";
+    return true; // allow form submission
+}
+</script>
+
+</body>
+</html>

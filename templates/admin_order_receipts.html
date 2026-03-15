@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Order Receipts</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 20px;
+    background: #f1f5f9;
+    color: #333;
+}
+
+h2 {
+    color: #0ea5e9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.table-container {
+    overflow-x: auto;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    border-radius: 10px;
+    background: #fff;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+th {
+    background: #0ea5e9;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+tr:hover {
+    background: #f0f9ff;
+}
+
+button.action-btn {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+button.action-btn:hover {
+    background: #0284c7;
+}
+
+.no-data {
+    text-align: center;
+    padding: 50px 0;
+    font-size: 1.2em;
+    color: #555;
+}
+</style>
+</head>
+<body>
+
+<h2>
+    Approved Order Receipts
+</h2>
+
+<div class="table-container">
+    {% if orders|length > 0 %}
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Total Amount (₱)</th>
+                <th>Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td>{{ o.order_id }}</td>
+                <td>{{ o.full_name }}</td>
+                <td>{{ o.email }}</td>
+                <td>₱{{ "%.2f"|format(o.total_amount) }}</td>
+                <td>{{ o.created_at.strftime("%Y-%m-%d %I:%M %p") }}</td>
+                <td>
+                    <a href="{{ url_for('order_receipt', order_id=o.order_id) }}" target="_blank">
+                        <button class="action-btn"><i class="fa-solid fa-receipt"></i> View Receipt</button>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data">No approved orders yet.</div>
+    {% endif %}
+</div>
+
+</body>
+</html>

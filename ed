@@ -1,0 +1,6 @@
+UPDATE payments
+SET due_date = DATE_ADD(NOW(), INTERVAL 3 DAY),
+    status = 'not_paid',
+    reminder_sent = 0,
+    reminder_sent_date = NULL
+WHERE id = 2;

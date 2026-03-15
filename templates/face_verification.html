@@ -1,0 +1,80 @@
+app.secret_key = "appliance_loan_secret"
+
+app.config["MYSQL_HOST"] = "localhost"
+app.config["MYSQL_USER"] = "root"
+app.config["MYSQL_PASSWORD"] = ""   # default XAMPP
+app.config["MYSQL_DB"] = "appliance_loan_db"
+mysql = MySQL(app)  
+
+def login_required(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return wrap
+
+    # 4️⃣ SIGNUP
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        full_name = request.form.get("full_name")
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        if not full_name or not email or not password:
+            return "All fields are required"
+
+        hashed_password = generate_password_hash(password)
+
+        try:
+            cur = mysql.connection.cursor()
+            cur.execute(
+                "INSERT INTO users (full_name, email, password) VALUES (%s, %s, %s)",
+                (full_name, email, hashed_password)
+            )
+            mysql.connection.commit()
+            cur.close()
+
+            return redirect(url_for("login"))
+
+        except Exception as e:
+            return f"Signup error: {e}"
+
+    return render_template("signup.html")
+
+# 5️⃣ LOGIN
+from flask import Flask, render_template, request, redirect, url_for, session
+from werkzeug.security import check_password_hash
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+        cur.close()
+
+        if user is None:
+            return render_template("login.html", error="Email not found")
+
+        # Adjust index depending on your DB column order
+        db_password = user[3]  # Assuming password is 4th column
+        if check_password_hash(db_password, password):
+            session["user_id"] = user[0]
+            session["user_name"] = user[1]
+            return redirect(url_for("index1"))
+        else:
+            return render_template("login.html", error="Incorrect password")
+
+    return render_template("login.html")
+
+
+
+@app.route("/logout")
+def logout():
+    session.clear()  # This removes all session data including user_id and user_name
+    return redirect(url_for("index1"))  # Redirect to the home page

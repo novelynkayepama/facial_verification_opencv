@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Orders</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+/* Heading */
+h2 {
+    text-align: center;
+    color: #0ea5e9;
+    margin-bottom: 20px;
+}
+
+/* Orders Table Card */
+.orders-card {
+    background: #fff;
+    max-width: 1000px;
+    margin: 0 auto 30px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.orders-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.orders-card table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-card table th, 
+.orders-card table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.orders-card table th {
+    background-color: #0ea5e9;
+    color: white;
+    font-weight: 600;
+    border-radius: 8px 8px 0 0;
+}
+
+.orders-card table tr:hover {
+    background: #f1f5f9;
+    transition: 0.2s;
+}
+
+/* Status Badges */
+.order-status-pending {
+    background: #facc15;
+    color: #000;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.order-status-approved {
+    background: #16a34a;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.order-status-denied {
+    background: #dc2626;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+/* No Data */
+.no-data {
+    text-align: center;
+    margin-top: 50px;
+    font-size: 1.2rem;
+    color: #6b7280;
+}
+</style>
+</head>
+<body>
+
+<h2>📦 My Orders</h2>
+
+{% if orders %}
+<div class="orders-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Appliances</th>
+                <th>Total</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for o in orders %}
+        <tr>
+            <td>#{{ o.order_id }}</td>
+            <td>
+                {% for item in o["items"] %}
+                    {{ item.appliance_name }} (x{{ item.quantity }})
+                    {% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </td>
+            <td>₱{{ "%.2f"|format(o.total_amount) }}</td>
+            <td>{{ o.created_at }}</td>
+            <td>
+                <span class="order-status-{{ o.status|lower }}">
+                    {{ o.status|capitalize }}
+                </span>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="no-data">You have no orders yet.</p>
+{% endif %}
+
+
+</body>
+</html>

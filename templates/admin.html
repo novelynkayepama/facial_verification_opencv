@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    background: #f1f5f9;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    width: 220px;
+    background: linear-gradient(180deg, #1f2937, #334155);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #38bdf8;
+}
+
+.sidebar button {
+    background: none;
+    border: none;
+    color: #e5e7eb;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    text-align: left;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    border-radius: 10px;
+    transition: all 0.25s ease;
+    position: relative;
+}
+
+.sidebar button i {
+    margin-right: 12px;
+    font-size: 17px;
+    width: 22px;
+    text-align: center;
+}
+
+.sidebar button:hover {
+    background: rgba(56,189,248,0.12);
+    color: #fff;
+    transform: translateX(4px);
+}
+
+/* Active Indicator */
+.sidebar button.active {
+    background: rgba(56,189,248,0.2);
+    color: #fff;
+}
+
+.sidebar button.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 4px;
+    background: #38bdf8;
+    border-radius: 5px;
+}
+
+/* ===== MAIN CONTENT ===== */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== TOP BAR ===== */
+.topbar {
+    height: 60px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.topbar h3 {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.admin-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #475569;
+    font-size: 14px;
+    position: relative;
+}
+
+.admin-info i {
+    font-size: 22px;
+    color: #38bdf8;
+}
+
+/* Notification Bell */
+#notifBellWrapper {
+    position: relative;
+    cursor: pointer;
+}
+
+#notifCount {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: red;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    width: 18px;
+    height: 18px;
+    text-align: center;
+    border-radius: 50%;
+    display: none;
+}
+
+#notifDropdown {
+    position: absolute;
+    right: 0;
+    top: 30px;
+    width: 300px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    display: none;
+    z-index: 1000;
+}
+
+#notifList {
+    list-style: none;
+    padding: 10px;
+    margin: 0;
+}
+
+#notifList li {
+    padding: 8px 5px;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+}
+
+/* ===== CONTENT FRAME ===== */
+.content {
+    flex: 1;
+    background: #f8fafc;
+    position: relative;
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+    animation: fadeSlide 0.35s ease;
+}
+
+@keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#reportsMenu {
+    display: none;
+    padding-left: 15px;
+    max-height: calc(100vh - 400px);
+    overflow-y: auto;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>ADMIN PANEL</h2>
+
+    <button class="active" onclick="loadPage('/dashboard', this)">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+    </button>
+
+    <button onclick="loadPage('/admin/customers', this)">
+        <i class="fa-solid fa-users"></i> Customers
+    </button>
+
+    <button onclick="loadPage('/admin/appliances', this)">
+        <i class="fa-solid fa-box"></i> Inventory
+    </button>
+
+    <button onclick="loadPage('/admin/loans', this)">
+        <i class="fa-solid fa-hand-holding-dollar"></i> Loans
+    </button>
+
+    <button onclick="loadPage('/admin/payments', this)">
+        <i class="fa-solid fa-credit-card"></i> Payments
+    </button>
+    <button onclick="loadPage('/admin/customer_ledger', this)">
+    <i class="fa-solid fa-book"></i> Customer Ledger
+</button>
+    <button onclick="toggleReports()">
+        <i class="fa-solid fa-chart-pie"></i> REPORTS
+        <i class="fa-solid fa-chevron-down" style="margin-left:auto;"></i>
+    </button>
+
+    <div id="reportsMenu">
+        <button onclick="loadPage('/admin/reports/loan_decisions', this)">
+            <i class="fa-solid fa-file-circle-check"></i> Loan Applications
+        </button>
+        <button onclick="loadPage('/admin/payment_transactions', this)">
+            <i class="fa-solid fa-money-bill-wave"></i> Payment History
+        </button>
+        <button onclick="loadPage('/admin/reports/monthly_sales', this)">
+            <i class="fa-solid fa-calendar-days"></i> Collections
+        </button>
+        <button onclick="loadPage('/admin/inventory-report', this)">
+            <i class="fa-solid fa-boxes-stacked"></i> Inventory Report
+        </button>
+       
+        <button onclick="loadPage('/admin/reports/customers', this)">
+            <i class="fa-solid fa-users"></i> Customer List
+        </button>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <h3>Admin Dashboard</h3>
+        <div class="admin-info">
+            <i class="fa-solid fa-user-shield"></i>
+            <span>Administrator</span>
+
+            <!-- Notification Bell -->
+            <div id="notifBellWrapper" onclick="toggleNotifications()">
+                <i class="fa-solid fa-bell fa-lg"></i>
+                <span id="notifCount">0</span>
+                <div id="notifDropdown">
+                    <ul id="notifList">
+                        <li style="text-align:center; color:#888;">No new notifications</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+        <iframe id="contentFrame" src="/dashboard"></iframe>
+    </div>
+</div>
+
+<script>
+function loadPage(url, btn) {
+    const frame = document.getElementById("contentFrame");
+    frame.style.opacity = 0;
+    setTimeout(() => {
+        frame.src = url;
+        frame.style.opacity = 1;
+    }, 150);
+
+    document.querySelectorAll(".sidebar button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    if (btn.parentElement.id === "reportsMenu") {
+        document.querySelector(".sidebar button:nth-child(7)").classList.add("active");
+    }
+}
+
+function toggleReports() {
+    const menu = document.getElementById("reportsMenu");
+    menu.style.display = menu.style.display === "none" ? "block" : "none";
+}
+
+// Notification Dropdown
+// Notification Dropdown
+async function toggleNotifications() {
+
+    const dropdown = document.getElementById('notifDropdown');
+
+    dropdown.style.display =
+        dropdown.style.display === 'block' ? 'none' : 'block';
+
+    if (dropdown.style.display === 'block') {
+
+        try {
+
+            await fetch('/admin/notifications/mark_all_read', {
+                method: 'POST'
+            });
+
+            fetchNotifications();
+
+        } catch(err) {
+
+            console.error(err);
+
+        }
+
+    }
+
+}
+
+// Fetch notifications every 10 seconds
+async function fetchNotifications() {
+
+    try {
+
+        const res = await fetch('/admin/notifications/json');
+        const data = await res.json();
+
+        const notifList = document.getElementById('notifList');
+        const notifCount = document.getElementById('notifCount');
+
+        notifList.innerHTML = '';
+
+        let unreadCount = 0;
+
+        if (data.length === 0) {
+
+            notifList.innerHTML =
+                '<li style="text-align:center;color:#888;">No new notifications</li>';
+
+        } else {
+
+            data.forEach(n => {
+
+                const li = document.createElement('li');
+
+                li.style.cursor = "pointer";
+
+                li.innerHTML = `
+                <div onclick="event.stopPropagation(); openNotification('${n.link}')"
+                     style="${n.is_read == 0 ? 'font-weight:bold;' : ''}">
+                    ${n.message}<br>
+                    <small style="color:#888;">${n.created_at}</small>
+                </div>
+                `;
+
+                notifList.appendChild(li);
+
+                if (n.is_read == 0) unreadCount++;
+
+            });
+
+        }
+
+        notifCount.style.display = unreadCount > 0 ? 'block' : 'none';
+
+        notifCount.textContent = unreadCount;
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
+
+function openNotification(link) {
+    if (!link) return;
+
+    // Load the link inside the dashboard iframe
+    const frame = document.getElementById("contentFrame");
+    frame.src = link;
+
+    // Hide the notification dropdown
+    document.getElementById("notifDropdown").style.display = "none";
+
+    // Mark notification as read (optional)
+    fetch('/admin/notifications/mark_all_read', { method: 'POST' })
+        .catch(err => console.error(err));
+}
+
+fetchNotifications();
+setInterval(fetchNotifications, 10000);
+</script>
+
+</body>
+</html>
