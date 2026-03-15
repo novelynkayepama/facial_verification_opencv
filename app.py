@@ -4,18 +4,18 @@ import os
 import numpy as np
 import base64
 from flask_mysqldb import MySQL
-import mysql
+
 from functools import wraps
 from flask import session, redirect, url_for
 from werkzeug.security import generate_password_hash
 import MySQLdb.cursors
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from datetime import datetime, timedelta
+from flask_mysqldb import MySQL  # This is fine
 from werkzeug.utils import secure_filename
-import os
+
 from datetime import date
 from dateutil.relativedelta import relativedelta
-import os
+
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import MySQLdb
@@ -27,10 +27,10 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from email.message import EmailMessage
 import smtplib
-import MySQLdb.cursors
+
 import io
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
+
 
 import yagmail
 app = Flask(__name__)
@@ -329,17 +329,14 @@ def signup():
 
     return render_template("signup.html")
 
-from werkzeug.security import generate_password_hash
 
-hashed = generate_password_hash("admin123")
-print(hashed)
 
 
 
 
 # 5️⃣ LOGIN
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+
 from werkzeug.security import check_password_hash
 
 @app.route("/login", methods=["GET", "POST"])
@@ -664,7 +661,7 @@ Greater RJ Appliance and Trading Corporation
 
     except Exception as e:
         print("Reminder Error:", e)
-from flask import request, render_template
+
 
 @app.route("/admin/payments")
 def admin_payments():
@@ -925,7 +922,6 @@ def customer_loans():
 
 
 
-from flask import flash
 
 @app.route("/add_to_cart/<int:appliance_id>", methods=["POST"])
 def add_to_cart(appliance_id):
@@ -1484,41 +1480,7 @@ Thank you for choosing Greater RJ Appliance and Trading Corporation.
     except Exception as e:
         return f"Error approving loan: {str(e)}"
 
-import qrcode
-from io import BytesIO
-from flask import send_file
 
-@app.route("/generate_qr/<int:payment_id>")
-def generate_qr(payment_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT amount_due FROM payments WHERE id=%s", (payment_id,))
-    payment = cur.fetchone()
-    cur.close()
-
-    if not payment:
-        return "Payment not found", 404
-
-    amount = payment['amount_due']
-
-    # Format the QR text (for GCash / Instapay)
-    # You can customize based on your preferred format
-    qr_text = f"GCash Payment\nAmount: {amount:.2f}\nReference: Payment#{payment_id}"
-
-    # Generate QR code
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=10,
-        border=2
-    )
-    qr.add_data(qr_text)
-    qr.make(fit=True)
-
-    img = qr.make_image(fill_color="black", back_color="white")
-    buf = BytesIO()
-    img.save(buf, 'PNG')
-    buf.seek(0)
-
-    return send_file(buf, mimetype='image/png')
 
 @app.route("/deny_loan/<int:loan_id>", methods=["POST"])
 def deny_loan(loan_id):
@@ -1572,9 +1534,7 @@ Greater RJ Appliance and Trading Corporation
 
 
 
-from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import datetime
-import MySQLdb.cursors
+
 
 
 @app.route('/payments')
@@ -1788,7 +1748,7 @@ Greater RJ Appliance and Trading Corporation
 
 
 
-from datetime import datetime, timedelta
+
 
 def send_due_payment_reminders():
     conn = get_db_connection()
@@ -2213,8 +2173,8 @@ def report_loan_decisions():
         denied_count=denied_count,
         pending_count=pending_count
     )
-from datetime import datetime
-import MySQLdb.cursors
+
+
 
 @app.route("/admin/reports/customers")
 def report_customers():
@@ -2357,7 +2317,7 @@ def payment_transactions():
 
 
 from collections import defaultdict
-from datetime import datetime
+
 
 @app.route("/admin/reports/monthly_sales", methods=["GET"])
 def admin_reports_monthly_sales():
@@ -2626,7 +2586,7 @@ def admin_loan_details(loan_id):
     return render_template("admin_loan_details.html", loan=loan)
 
 from werkzeug.utils import secure_filename
-import os
+
 
 @app.route('/admin/notifications/json')
 def admin_notifications_json():
@@ -2811,7 +2771,7 @@ def test_reminder():
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=auto_send_reminders, trigger="interval", hours=24)
 scheduler.start()
-import os
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Render sets PORT
