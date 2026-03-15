@@ -34,41 +34,32 @@ from datetime import datetime
 
 import yagmail
 app = Flask(__name__)
+import os
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_mysqldb import MySQL
 
+app = Flask(__name__)
 
+# -------------------------
+# Configuration
+# -------------------------
 
-EMAIL_USER = "novelynkaye2003@gmail.com"
-EMAIL_APP_PASSWORD = "ovln uzvs ldkk kxwz"
+# Secret key (for session management)
+app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
-app.secret_key = "supersecretkey"
-@app.route("/test-db")
-def test_db():
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT DATABASE()")
-    db = cur.fetchone()
-    cur.close()
-    return f"Connected to database: {db}"
-
-import MySQLdb
-
-def get_db_connection():
-    return MySQLdb.connect(
-        host="localhost",
-        user="root",
-        passwd="",          # XAMPP default
-        db="appliance_loan_db",
-        charset="utf8mb4"
-    )
-
-
-app.config["MYSQL_HOST"] = "localhost"
-app.config["MYSQL_USER"] = "root"
-app.config["MYSQL_PASSWORD"] = ""   # default XAMPP
-app.config["MYSQL_DB"] = "appliance_loan_db"
+# MySQL configuration
+app.config["MYSQL_HOST"] = os.environ.get("MYSQL_HOST", "localhost")
+app.config["MYSQL_USER"] = os.environ.get("MYSQL_USER", "root")
+app.config["MYSQL_PASSWORD"] = os.environ.get("MYSQL_PASSWORD", "")
+app.config["MYSQL_DB"] = os.environ.get("MYSQL_DB", "appliance_loan_db")
 app.config["MYSQL_CURSORCLASS"] = "DictCursor"
 
-
+# Initialize MySQL
 mysql = MySQL(app)
+
+# Email configuration
+EMAIL_USER = os.environ.get("EMAIL_USER", "novelynkaye2003@gmail.com")
+EMAIL_APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD", "ovln uzvs ldkk kxwz")
 
 
 
