@@ -2818,7 +2818,12 @@ def test_reminder():
     auto_send_reminders()
     return "Reminder function executed!"
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=auto_send_reminders, trigger="interval", minutes=.5)
+scheduler.add_job(func=auto_send_reminders, trigger="interval", hours=24)
 scheduler.start()
 if __name__ == "__main__":
-    app.run(debug=True)
+    import os
+    app.run(
+        host="0.0.0.0",                     # allow external access
+        port=int(os.environ.get("PORT", 5000)),  # use Render's port
+        debug=True
+    )   
