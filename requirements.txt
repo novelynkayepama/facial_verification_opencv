@@ -1,5 +1,6 @@
 Flask==2.2.5
 Flask-MySQLdb==1.0.1
+mysqlclient==2.2.0   # <-- This is required by Flask-MySQLdb
 Flask-Mail==0.10.0
 gunicorn==21.2.0
 python-dotenv==1.0.0
