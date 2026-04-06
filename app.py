@@ -19,7 +19,7 @@ import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import MySQLdb
-import yagmail
+
 from flask import Blueprint, jsonify
 from flask import flash, redirect, request
 from io import BytesIO
@@ -32,7 +32,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 
 
-import yagmail
+
 # ------------------------------
 # DATABASE CONFIGURATION — RAILWAY
 # ------------------------------
