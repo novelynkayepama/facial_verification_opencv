@@ -4,7 +4,7 @@ import os
 import numpy as np
 import base64
 from flask_mysqldb import MySQL
-import mysql
+import mysql.connector
 from functools import wraps
 from flask import session, redirect, url_for
 from werkzeug.security import generate_password_hash
@@ -36,28 +36,36 @@ from datetime import datetime
 import yagmail
 
 
+from flask import Flask
+
 app = Flask(__name__)
 EMAIL_USER = "novelynkaye2003@gmail.com"
 EMAIL_APP_PASSWORD = "ovln uzvs ldkk kxwz"
-app.secret_key = "supersecretkey" 
-@app.route("/test-db") 
-def test_db(): 
-    cur = mysql.connection.cursor() 
-    cur.execute("SELECT DATABASE()") 
-    db = cur.fetchone() 
-    cur.close() 
+app.secret_key = "supersecretkey"
 
-import MySQLdb 
-def get_db_connection(): 
-    return MySQLdb.connect( host="localhost", user="root", passwd="", # XAMPP default 
-    db="appliance_loan_db", charset="utf8mb4" ) 
-app.config["MYSQL_HOST"] = "localhost" 
-app.config["MYSQL_USER"] = "root" 
-app.config["MYSQL_PASSWORD"] = "" # default XAMPP 
-app.config["MYSQL_DB"] = "appliance_loan_db" 
-app.config["MYSQL_CURSORCLASS"] = "DictCursor" 
-mysql = MySQL(app)
+# --------------------------
+# DATABASE PLACEHOLDER (Render-safe)
+# --------------------------
+# Commented out MySQL/XAMPP connection for now
+# import MySQLdb
+# from flask_mysqldb import MySQL
 
+mysql = None  # placeholder
+
+def get_db_connection():
+    # Return None for now (no database)
+    return None
+
+@app.route("/test-db")
+def test_db():
+    if mysql:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT DATABASE()")
+        db = cur.fetchone()
+        cur.close()
+        return f"Database: {db}"
+    else:
+        return "No database connected (safe for Render deployment)."
 
 
 
