@@ -23,8 +23,7 @@ import yagmail
 from flask import Blueprint, jsonify
 from flask import flash, redirect, request
 from io import BytesIO
-from reportlab.lib.pagesizes import LETTER
-from reportlab.pdfgen import canvas
+
 from email.message import EmailMessage
 import smtplib
 import MySQLdb.cursors
