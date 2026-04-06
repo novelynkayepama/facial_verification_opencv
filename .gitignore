@@ -1,31 +1,4 @@
-# Python cache files
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-
-# Virtual environment
-venv/
-env/
-.venv/
-
-# Flask environment variables
-.env
-
-# Mac / Linux / Windows system files
-.DS_Store
-Thumbs.db
-
-# PyCharm / VSCode folders
-.idea/
-.vscode/
-
-# Logs
-*.log
-
-# SQLite database (if you ever use locally)
-*.db
-
-# Node / front-end stuff (if any)
-node_modules/
-dist/
+instance/
+*.sqlite

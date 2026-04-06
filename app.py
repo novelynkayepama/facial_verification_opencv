@@ -4,7 +4,7 @@ import os
 import numpy as np
 import base64
 from flask_mysqldb import MySQL
-
+import mysql
 from functools import wraps
 from flask import session, redirect, url_for
 from werkzeug.security import generate_password_hash
@@ -19,11 +19,12 @@ import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import MySQLdb
-
+import yagmail
 from flask import Blueprint, jsonify
 from flask import flash, redirect, request
 from io import BytesIO
-
+from reportlab.lib.pagesizes import LETTER
+from reportlab.pdfgen import canvas
 from email.message import EmailMessage
 import smtplib
 import MySQLdb.cursors
@@ -32,60 +33,30 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 
 
+import yagmail
 
-# ------------------------------
-# DATABASE CONFIGURATION — RAILWAY
-# ------------------------------
-
-import os
-from flask import Flask
-from flask_mysqldb import MySQL
 
 app = Flask(__name__)
 EMAIL_USER = "novelynkaye2003@gmail.com"
 EMAIL_APP_PASSWORD = "ovln uzvs ldkk kxwz"
-app.secret_key = "supersecretkey"
+app.secret_key = "supersecretkey" 
+@app.route("/test-db") 
+def test_db(): 
+    cur = mysql.connection.cursor() 
+    cur.execute("SELECT DATABASE()") 
+    db = cur.fetchone() 
+    cur.close() 
 
-# Use environment variables for database connection
-# These variables will come from Railway (or Render when deployed)
-app.config["MYSQL_HOST"] = os.getenv("MYSQLHOST", "localhost")          # default to localhost for local testing
-app.config["MYSQL_USER"] = os.getenv("MYSQLUSER", "root")
-app.config["MYSQL_PASSWORD"] = os.getenv("MYSQLPASSWORD", "")
-app.config["MYSQL_DB"] = os.getenv("MYSQLDATABASE", "appliance_loan_db")
-app.config["MYSQL_CURSORCLASS"] = "DictCursor"
-app.config["MYSQL_PORT"] = int(os.getenv("MYSQLPORT", 3306))           # optional, default 3306
-
-# Initialize MySQL
+import MySQLdb 
+def get_db_connection(): 
+    return MySQLdb.connect( host="localhost", user="root", passwd="", # XAMPP default 
+    db="appliance_loan_db", charset="utf8mb4" ) 
+app.config["MYSQL_HOST"] = "localhost" 
+app.config["MYSQL_USER"] = "root" 
+app.config["MYSQL_PASSWORD"] = "" # default XAMPP 
+app.config["MYSQL_DB"] = "appliance_loan_db" 
+app.config["MYSQL_CURSORCLASS"] = "DictCursor" 
 mysql = MySQL(app)
-
-# ------------------------------
-# TEST DATABASE CONNECTION
-# ------------------------------
-
-@app.route("/test-db")
-def test_db():
-    try:
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT DATABASE()")
-        db = cur.fetchone()
-        cur.close()
-        return f"✅ Connected to database: {db}"
-    except Exception as e:
-        return f"❌ Database connection failed: {str(e)}"
-
-# ------------------------------
-# Example: Get MySQL connection (optional, advanced use)
-# ------------------------------
-# import MySQLdb
-# def get_db_connection():
-#     return MySQLdb.connect(
-#         host=os.getenv("MYSQLHOST", "localhost"),
-#         user=os.getenv("MYSQLUSER", "root"),
-#         passwd=os.getenv("MYSQLPASSWORD", ""),
-#         db=os.getenv("MYSQLDATABASE", "appliance_loan_db"),
-#         charset="utf8mb4"
-#     )
-
 
 
 
