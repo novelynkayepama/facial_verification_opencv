@@ -11,5 +11,5 @@ Werkzeug==3.1.5
 blinker==1.9.0
 numpy==1.26.4
 opencv-python-headless==4.8.1.78
-yagmail==0.15.293
-reportlab==3.5.66   # Compatible with Python 3.11
+yagmail==0.15.254
+reportlab==3.5.66   # works with Python 3.11
