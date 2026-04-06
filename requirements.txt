@@ -1,4 +1,4 @@
-setuptools>=68.0.0
+setuptools>=70.0.0
 Flask==2.2.5
 Flask-MySQLdb==1.0.1
 mysqlclient==2.2.0
@@ -15,4 +15,4 @@ python-dateutil==2.9.0
 yagmail==0.14.260
 APScheduler==3.10.1
 gunicorn==21.2.0
-reportlab==3.6.13
+reportlab==3.5.50
