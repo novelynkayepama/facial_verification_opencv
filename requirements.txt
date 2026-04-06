@@ -1,6 +1,6 @@
 Flask==2.2.5
 Flask-MySQLdb==1.0.1
-mysqlclient==2.2.0   # <-- This is required by Flask-MySQLdb
+mysqlclient==2.2.0          # required by Flask-MySQLdb
 Flask-Mail==0.10.0
 gunicorn==21.2.0
 python-dotenv==1.0.0
@@ -10,5 +10,5 @@ click==8.3.1
 Werkzeug==3.1.5
 blinker==1.9.0
 numpy==1.26.4
-opencv-python==4.8.1.78
+opencv-python-headless==4.8.1.78   # <-- use headless for server deployment
 python-dateutil==2.8.2

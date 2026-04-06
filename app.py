@@ -4,18 +4,18 @@ import os
 import numpy as np
 import base64
 from flask_mysqldb import MySQL
-
+import mysql
 from functools import wraps
 from flask import session, redirect, url_for
 from werkzeug.security import generate_password_hash
 import MySQLdb.cursors
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_mysqldb import MySQL  # This is fine
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
-
+import os
 from datetime import date
 from dateutil.relativedelta import relativedelta
-
+import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import MySQLdb
@@ -27,39 +27,65 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from email.message import EmailMessage
 import smtplib
-
+import MySQLdb.cursors
 import io
 from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
 
 
 import yagmail
-app = Flask(__name__)
+# ------------------------------
+# DATABASE CONFIGURATION — RAILWAY
+# ------------------------------
+
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask
 from flask_mysqldb import MySQL
 
 app = Flask(__name__)
+EMAIL_USER = "novelynkaye2003@gmail.com"
+EMAIL_APP_PASSWORD = "ovln uzvs ldkk kxwz"
+app.secret_key = "supersecretkey"
 
-# -------------------------
-# Configuration
-# -------------------------
-
-# Secret key (for session management)
-app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
-
-# MySQL configuration
-app.config["MYSQL_HOST"] = os.environ.get("MYSQL_HOST", "localhost")
-app.config["MYSQL_USER"] = os.environ.get("MYSQL_USER", "root")
-app.config["MYSQL_PASSWORD"] = os.environ.get("MYSQL_PASSWORD", "")
-app.config["MYSQL_DB"] = os.environ.get("MYSQL_DB", "appliance_loan_db")
+# Use environment variables for database connection
+# These variables will come from Railway (or Render when deployed)
+app.config["MYSQL_HOST"] = os.getenv("MYSQLHOST", "localhost")          # default to localhost for local testing
+app.config["MYSQL_USER"] = os.getenv("MYSQLUSER", "root")
+app.config["MYSQL_PASSWORD"] = os.getenv("MYSQLPASSWORD", "")
+app.config["MYSQL_DB"] = os.getenv("MYSQLDATABASE", "appliance_loan_db")
 app.config["MYSQL_CURSORCLASS"] = "DictCursor"
+app.config["MYSQL_PORT"] = int(os.getenv("MYSQLPORT", 3306))           # optional, default 3306
 
 # Initialize MySQL
 mysql = MySQL(app)
 
-# Email configuration
-EMAIL_USER = os.environ.get("EMAIL_USER", "novelynkaye2003@gmail.com")
-EMAIL_APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD", "ovln uzvs ldkk kxwz")
+# ------------------------------
+# TEST DATABASE CONNECTION
+# ------------------------------
+
+@app.route("/test-db")
+def test_db():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT DATABASE()")
+        db = cur.fetchone()
+        cur.close()
+        return f"✅ Connected to database: {db}"
+    except Exception as e:
+        return f"❌ Database connection failed: {str(e)}"
+
+# ------------------------------
+# Example: Get MySQL connection (optional, advanced use)
+# ------------------------------
+# import MySQLdb
+# def get_db_connection():
+#     return MySQLdb.connect(
+#         host=os.getenv("MYSQLHOST", "localhost"),
+#         user=os.getenv("MYSQLUSER", "root"),
+#         passwd=os.getenv("MYSQLPASSWORD", ""),
+#         db=os.getenv("MYSQLDATABASE", "appliance_loan_db"),
+#         charset="utf8mb4"
+#     )
 
 
 
@@ -329,14 +355,17 @@ def signup():
 
     return render_template("signup.html")
 
+from werkzeug.security import generate_password_hash
 
+hashed = generate_password_hash("admin123")
+print(hashed)
 
 
 
 
 # 5️⃣ LOGIN
 
-
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import check_password_hash
 
 @app.route("/login", methods=["GET", "POST"])
@@ -661,7 +690,7 @@ Greater RJ Appliance and Trading Corporation
 
     except Exception as e:
         print("Reminder Error:", e)
-
+from flask import request, render_template
 
 @app.route("/admin/payments")
 def admin_payments():
@@ -922,6 +951,7 @@ def customer_loans():
 
 
 
+from flask import flash
 
 @app.route("/add_to_cart/<int:appliance_id>", methods=["POST"])
 def add_to_cart(appliance_id):
@@ -1480,7 +1510,41 @@ Thank you for choosing Greater RJ Appliance and Trading Corporation.
     except Exception as e:
         return f"Error approving loan: {str(e)}"
 
+import qrcode
+from io import BytesIO
+from flask import send_file
 
+@app.route("/generate_qr/<int:payment_id>")
+def generate_qr(payment_id):
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur.execute("SELECT amount_due FROM payments WHERE id=%s", (payment_id,))
+    payment = cur.fetchone()
+    cur.close()
+
+    if not payment:
+        return "Payment not found", 404
+
+    amount = payment['amount_due']
+
+    # Format the QR text (for GCash / Instapay)
+    # You can customize based on your preferred format
+    qr_text = f"GCash Payment\nAmount: {amount:.2f}\nReference: Payment#{payment_id}"
+
+    # Generate QR code
+    qr = qrcode.QRCode(
+        version=1,
+        box_size=10,
+        border=2
+    )
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, 'PNG')
+    buf.seek(0)
+
+    return send_file(buf, mimetype='image/png')
 
 @app.route("/deny_loan/<int:loan_id>", methods=["POST"])
 def deny_loan(loan_id):
@@ -1534,7 +1598,9 @@ Greater RJ Appliance and Trading Corporation
 
 
 
-
+from flask import Flask, render_template, request, redirect, url_for, flash
+from datetime import datetime
+import MySQLdb.cursors
 
 
 @app.route('/payments')
@@ -1585,13 +1651,17 @@ def update_partial_payments(user_id):
         return redirect(url_for('view_customer_payments', user_id=user_id))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ===== GET CURRENT PAYMENT =====
     cur.execute("SELECT * FROM payments WHERE id=%s", (payment_id,))
     payment = cur.fetchone()
+
     if not payment:
         cur.close()
         flash("Payment not found.", "danger")
         return redirect(url_for('view_customer_payments', user_id=user_id))
 
+    # ===== GET INPUT =====
     try:
         paid_amount = float(request.form.get(f"paid_{payment_id}", 0))
     except:
@@ -1599,18 +1669,21 @@ def update_partial_payments(user_id):
         flash("Invalid payment amount.", "danger")
         return redirect(url_for('view_customer_payments', user_id=user_id))
 
-    # Base original_amount_due
-    amount_due = float(payment['original_amount_due'])
-    overpayment = max(paid_amount - amount_due, 0)
-    arrears = max(amount_due - paid_amount, 0)
+    # ===== IMPORTANT: USE UPDATED AMOUNT_DUE =====
+    current_due = float(payment['amount_due'])
 
-    # Determine status
-    if paid_amount >= amount_due:
+    # ===== COMPUTE ONLY THIS MONTH DIFFERENCE =====
+    arrears = max(current_due - paid_amount, 0)
+    overpayment = max(paid_amount - current_due, 0)
+    adjustment = arrears - overpayment  # 🔥 key variable
+
+    # ===== DETERMINE STATUS =====
+    if paid_amount >= current_due:
         status = 'paid'
         paid_at = datetime.now()
         payment_type = "Paid in Full ✅"
     elif paid_amount > 0:
-        status = 'Insufficient payment.'
+        status = 'partial'
         paid_at = None
         payment_type = "Partial Payment ⚠️"
     else:
@@ -1618,32 +1691,42 @@ def update_partial_payments(user_id):
         paid_at = None
         payment_type = "Not Paid ❌"
 
-    # Update current payment
+    # ===== UPDATE CURRENT PAYMENT =====
     cur.execute("""
         UPDATE payments
         SET paid_amount=%s, status=%s, arrears=%s, paid_at=%s
         WHERE id=%s
     """, (paid_amount, status, arrears, paid_at, payment_id))
 
-    # Adjust next month payment
-    cur.execute("SELECT * FROM payments WHERE loan_id=%s AND month_no=%s",
-                (payment['loan_id'], payment['month_no'] + 1))
+    # ===== GET NEXT MONTH =====
+    cur.execute("""
+        SELECT * FROM payments 
+        WHERE loan_id=%s AND month_no=%s
+    """, (payment['loan_id'], payment['month_no'] + 1))
+
     next_payment = cur.fetchone()
     next_due_msg = ""
 
     if next_payment:
-        next_due = float(next_payment['original_amount_due']) + arrears - overpayment
+        # 🔥 ALWAYS RESET TO ORIGINAL BASE
+        base_due = float(next_payment['original_amount_due'])
+
+        # 🔥 APPLY ONLY THIS MONTH’S ADJUSTMENT
+        next_due = base_due + adjustment
         next_due = max(next_due, 0)
 
-        cur.execute("UPDATE payments SET amount_due=%s WHERE id=%s",
-                    (next_due, next_payment['id']))
+        cur.execute("""
+            UPDATE payments 
+            SET amount_due=%s
+            WHERE id=%s
+        """, (next_due, next_payment['id']))
 
         next_due_msg = f"\nNext Month's Adjusted Due: ₱{next_due:.2f}"
 
     mysql.connection.commit()
     cur.close()
 
-    # ===== SEND SMART EMAIL =====
+    # ===== EMAIL + RECEIPT (UNCHANGED) =====
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -1659,8 +1742,6 @@ def update_partial_payments(user_id):
         cur.close()
 
         if info:
-
-            # ===== PDF RECEIPT =====
             pdf_buffer = io.BytesIO()
             c = canvas.Canvas(pdf_buffer, pagesize=(400, 420))
 
@@ -1668,10 +1749,8 @@ def update_partial_payments(user_id):
             today = datetime.now().strftime("%B %d, %Y")
             due_date = payment['due_date'].strftime("%B %d, %Y")
 
-            # Border
             c.rect(10, 10, 380, 400, stroke=1, fill=0)
 
-            # Header
             c.setFont("Helvetica-Bold", 12)
             c.drawCentredString(200, 380, "GREATER RJ Appliance & Trading Corp")
 
@@ -1680,12 +1759,10 @@ def update_partial_payments(user_id):
 
             c.line(20, 355, 380, 355)
 
-            # Receipt info
             c.setFont("Helvetica", 10)
             c.drawString(20, 335, f"Receipt No : {receipt_no}")
             c.drawString(20, 320, f"Date       : {today}")
 
-            # Customer
             c.drawString(20, 295, f"Customer   : {info['full_name'].upper()}")
             c.drawString(20, 280, f"Appliance  : {info['appliance_name'].upper()}")
 
@@ -1693,11 +1770,9 @@ def update_partial_payments(user_id):
 
             c.line(20, 245, 380, 245)
 
-            # Amounts
-            c.drawString(20, 225, f"Amount Due : ₱{amount_due:,.2f}")
+            c.drawString(20, 225, f"Amount Due : ₱{current_due:,.2f}")
             c.drawString(20, 210, f"Amount Paid: ₱{paid_amount:,.2f}")
 
-            # Status
             if status == "paid":
                 receipt_status = "FULLY PAID"
             elif paid_amount > 0:
@@ -1716,7 +1791,6 @@ def update_partial_payments(user_id):
             c.save()
             pdf_buffer.seek(0)
 
-            # Email body
             body = f"""
 Hello {info['full_name']},
 
@@ -1736,19 +1810,18 @@ Greater RJ Appliance and Trading Corporation
                 to=info['email'],
                 subject=f"Payment Update – {info['appliance_name']}",
                 contents=body,
-                headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"},
                 attachments=[pdf_buffer]
             )
 
     except Exception as e:
-        print("Error sending email:", e)
+        print("Email error:", e)
 
-    flash("Payment updated successfully and notification sent ✅.", "success")
+    flash("Payment updated successfully and next month adjusted correctly ✅.", "success")
     return redirect(url_for('view_customer_payments', user_id=user_id))
 
 
 
-
+from datetime import datetime, timedelta
 
 def send_due_payment_reminders():
     conn = get_db_connection()
@@ -2173,8 +2246,8 @@ def report_loan_decisions():
         denied_count=denied_count,
         pending_count=pending_count
     )
-
-
+from datetime import datetime
+import MySQLdb.cursors
 
 @app.route("/admin/reports/customers")
 def report_customers():
@@ -2317,7 +2390,7 @@ def payment_transactions():
 
 
 from collections import defaultdict
-
+from datetime import datetime
 
 @app.route("/admin/reports/monthly_sales", methods=["GET"])
 def admin_reports_monthly_sales():
@@ -2586,7 +2659,7 @@ def admin_loan_details(loan_id):
     return render_template("admin_loan_details.html", loan=loan)
 
 from werkzeug.utils import secure_filename
-
+import os
 
 @app.route('/admin/notifications/json')
 def admin_notifications_json():
@@ -2769,10 +2842,7 @@ def test_reminder():
     auto_send_reminders()
     return "Reminder function executed!"
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=auto_send_reminders, trigger="interval", hours=24)
+scheduler.add_job(func=auto_send_reminders, trigger="interval", minutes=.5)
 scheduler.start()
-
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render sets PORT
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
