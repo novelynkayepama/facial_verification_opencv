@@ -1488,41 +1488,7 @@ Thank you for choosing Greater RJ Appliance and Trading Corporation.
     except Exception as e:
         return f"Error approving loan: {str(e)}"
 
-import qrcode
-from io import BytesIO
-from flask import send_file
 
-@app.route("/generate_qr/<int:payment_id>")
-def generate_qr(payment_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT amount_due FROM payments WHERE id=%s", (payment_id,))
-    payment = cur.fetchone()
-    cur.close()
-
-    if not payment:
-        return "Payment not found", 404
-
-    amount = payment['amount_due']
-
-    # Format the QR text (for GCash / Instapay)
-    # You can customize based on your preferred format
-    qr_text = f"GCash Payment\nAmount: {amount:.2f}\nReference: Payment#{payment_id}"
-
-    # Generate QR code
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=10,
-        border=2
-    )
-    qr.add_data(qr_text)
-    qr.make(fit=True)
-
-    img = qr.make_image(fill_color="black", back_color="white")
-    buf = BytesIO()
-    img.save(buf, 'PNG')
-    buf.seek(0)
-
-    return send_file(buf, mimetype='image/png')
 
 @app.route("/deny_loan/<int:loan_id>", methods=["POST"])
 def deny_loan(loan_id):
