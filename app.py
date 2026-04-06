@@ -4,7 +4,7 @@ import os
 import numpy as np
 import base64
 from flask_mysqldb import MySQL
-import mysql
+
 from functools import wraps
 from flask import session, redirect, url_for
 from werkzeug.security import generate_password_hash
