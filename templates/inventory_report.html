@@ -166,24 +166,48 @@ tr:hover { background-color: #e0f2fe; }
 
 <div class="container">
 
-    <!-- Category Filter Card -->
-    <div class="card shadow-sm mb-4 p-3 no-print" style="border-radius:15px; background: rgba(14,165,233,0.1);">
-        <h4 class="mb-3" style="color:#0ea5e9; font-weight:700;">📂 Filter Inventory by Category</h4>
-        <form method="GET" class="d-flex flex-wrap gap-3 align-items-end">
-            <div>
-                <label for="category" class="fw-semibold">Category:</label>
-                <select name="category" id="category" class="form-select" style="min-width:200px;">
-                    <option value="">All Categories</option>
-                    {% for c in categories %}
-                        <option value="{{ c.category }}" {% if selected_category == c.category %}selected{% endif %}>
-                            {{ c.category }}
+    <!-- Filters Card -->
+    <!-- Category & Appliance Filter Card -->
+<div class="card shadow-sm mb-4 p-3 no-print" style="border-radius:15px; background: rgba(14,165,233,0.1);">
+    <h4 class="mb-3" style="color:#0ea5e9; font-weight:700;">📂 Filter Inventory</h4>
+    <form method="GET" class="d-flex flex-wrap gap-3 align-items-end">
+
+        <!-- Category Dropdown -->
+        <div>
+            <label for="category" class="fw-semibold">Category:</label>
+            <select name="category" id="category" class="form-select" style="min-width:200px;" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for c in categories %}
+                    <option value="{{ c.category }}" {% if selected_category == c.category %}selected{% endif %}>
+                        {{ c.category }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Appliance Name Dropdown -->
+        <div>
+            <label for="appliance_name" class="fw-semibold">Appliance Name:</label>
+            <select name="appliance_name" id="appliance_name" class="form-select" style="min-width:200px;" onchange="this.form.submit()">
+                <option value="">All Appliances</option>
+                {% for a in appliances %}
+                    {% if not selected_category or a.category == selected_category %}
+                        <option value="{{ a.appliance_name }}" {% if selected_appliance == a.appliance_name %}selected{% endif %}>
+                            {{ a.appliance_name }}
                         </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <button type="submit" class="btn btn-primary" style="background:#0ea5e9; border:none;">🔍 Apply Filter</button>
-            </div>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div>
+            <a href="{{ url_for('inventory_report') }}" class="btn btn-danger">🔄 Reset Filters</a>
+        </div>
+
+    </form>
+</div>
+
         </form>
     </div>
 

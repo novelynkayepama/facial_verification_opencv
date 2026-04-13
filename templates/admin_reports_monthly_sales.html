@@ -323,15 +323,54 @@ const monthlyCollected = [{% for r in reports %}{{ r.total_collected }},{% endfo
 const monthlyStocks = [{% for r in reports %}{{ r.stocks_released }},{% endfor %}];
 
 new Chart(document.getElementById('monthlyChart').getContext('2d'), {
-    type: 'bar',
     data: {
         labels: monthlyLabels,
         datasets: [
-            { label: 'Total Collected (₱)', data: monthlyCollected, backgroundColor: '#16a34a' },
-            { label: 'Stocks Released', data: monthlyStocks, backgroundColor: '#dc2626' }
+            {
+                type: 'bar',
+                label: 'Total Collected (₱)',
+                data: monthlyCollected,
+                backgroundColor: '#16a34a',
+                yAxisID: 'y'
+            },
+            {
+                type: 'bar',
+                label: 'Stocks Released',
+                data: monthlyStocks,
+                borderColor: '#dc2626',
+                backgroundColor: '#dc2626',
+                yAxisID: 'y1',
+                tension: 0.3
+            }
         ]
     },
-    options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' }
+        },
+        scales: {
+            y: {
+                position: 'left',
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Total Collected (₱)'
+                }
+            },
+            y1: {
+                position: 'right',
+                beginAtZero: true,
+                grid: {
+                    drawOnChartArea: false
+                },
+                title: {
+                    display: true,
+                    text: 'Stocks Released'
+                }
+            }
+        }
+    }
 });
 
 /* ===== Yearly Graph per Month ===== */

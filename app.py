@@ -1,94 +1,121 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, Blueprint
 import cv2
 import os
 import numpy as np
 import base64
 from flask_mysqldb import MySQL
-import mysql.connector
-from functools import wraps
-from flask import session, redirect, url_for
-from werkzeug.security import generate_password_hash
-import MySQLdb.cursors
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from datetime import datetime, timedelta
-from werkzeug.utils import secure_filename
-import os
-from datetime import date
-from dateutil.relativedelta import relativedelta
-import os
-from werkzeug.utils import secure_filename
-from datetime import datetime, timedelta
 import MySQLdb
+import MySQLdb.cursors
+from functools import wraps
+from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta, date
+from dateutil.relativedelta import relativedelta
 import yagmail
-from flask import Blueprint, jsonify
-from flask import flash, redirect, request
 from io import BytesIO
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from email.message import EmailMessage
 import smtplib
-import MySQLdb.cursors
 import io
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
 
+from urllib.parse import urlparse
 
-import yagmail
-
-
-from flask import Flask
 
 app = Flask(__name__)
-EMAIL_USER = "novelynkaye2003@gmail.com"
-EMAIL_APP_PASSWORD = "ovln uzvs ldkk kxwz"
-app.secret_key = "supersecretkey"
 
-# --------------------------
-# DATABASE PLACEHOLDER (Render-safe)
-# --------------------------
-# Commented out MySQL/XAMPP connection for now
-# import MySQLdb
-# from flask_mysqldb import MySQL
+# ==============================
+# SECURE EMAIL (WITH FALLBACK)
+# ==============================
+EMAIL_USER = os.getenv("EMAIL_USER") or "novelynkaye2003@gmail.com"
+EMAIL_APP_PASSWORD = os.getenv("EMAIL_PASS") or "ovln uzvs ldkk kxwz"
 
-mysql = None  # placeholder
+# ==============================
+# SECRET KEY
+# ==============================
+app.secret_key = os.getenv("SECRET_KEY") or "supersecretkey"
+
+# ==============================
+# MYSQL CONNECTION (RENDER / RAILWAY READY)
+# ==============================
+import os
+import MySQLdb
+from urllib.parse import urlparse
 
 def get_db_connection():
-    # Return None for now (no database)
-    return None
+    database_url = os.getenv("DATABASE_URL")
 
+    # =========================
+    # LOCAL (XAMPP fallback)
+    # =========================
+    if not database_url:
+        return MySQLdb.connect(
+            host="localhost",
+            user="root",
+            passwd="",
+            db="appliance_loan_db",
+            charset="utf8mb4"
+        )
+
+    # =========================
+    # CLOUD (Render/Railway)
+    # =========================
+    url = urlparse(database_url)
+
+    return MySQLdb.connect(
+        host=url.hostname,
+        user=url.username,
+        passwd=url.password,
+        db=url.path.lstrip("/"),
+        port=url.port or 3306,
+        charset="utf8mb4"
+    )
+
+# ==============================
+# TEST ROUTE (FIXED)
+# ==============================
 @app.route("/test-db")
 def test_db():
-    if mysql:
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT DATABASE()")
-        db = cur.fetchone()
-        cur.close()
-        return f"Database: {db}"
-    else:
-        return "No database connected (safe for Render deployment)."
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT DATABASE()")
+    db = cur.fetchone()
+    cur.close()
+    conn.close()
+    return {"database": db}
 
 
 
-# Admin inventory page
+
 @app.route("/admin/appliances")
 def admin_appliances():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     cur.execute("SELECT * FROM appliances")
     appliances = cur.fetchall()
+
     cur.close()
+    conn.close()
+
     return render_template("admin_appliances.html", appliances=appliances)
 
     
 @app.route("/")
 @app.route("/index1")
 def index1():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     cur.execute("SELECT * FROM appliances")
     appliances = cur.fetchall()
+
     cur.close()
+    conn.close()
 
     cart = session.get("cart", {})
-    cart_count = sum(cart.values())  # 👈 TOTAL quantity
+    cart_count = sum(cart.values())  # total quantity
 
     return render_template(
         "index1.html",
@@ -98,7 +125,8 @@ def index1():
 
 @app.route("/admin/edit_customer/<int:user_id>", methods=["GET", "POST"])
 def edit_customer(user_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == "POST":
         name = request.form["name"]
@@ -111,25 +139,38 @@ def edit_customer(user_id):
             SET full_name=%s, email=%s, contact_number=%s, address=%s
             WHERE id=%s
         """, (name, email, contact_number, address, user_id))
-        mysql.connection.commit()
+
+        conn.commit()
         cur.close()
+        conn.close()
 
         flash("Customer updated successfully!", "success")
         return redirect(url_for("admin_customers"))
 
-    cur.execute("SELECT id, full_name, email, contact_number, address FROM users WHERE id=%s", (user_id,))
+    cur.execute("""
+        SELECT id, full_name, email, contact_number, address
+        FROM users
+        WHERE id=%s
+    """, (user_id,))
+
     customer = cur.fetchone()
+
     cur.close()
+    conn.close()
 
     return render_template("edit_customer.html", customer=customer)
 
     
 @app.route("/admin/delete_customer/<int:user_id>")
 def delete_customer(user_id):
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
-    mysql.connection.commit()
+    conn.commit()
+
     cur.close()
+    conn.close()
 
     flash("Customer deleted successfully!", "success")
     return redirect(url_for("admin_customers"))
@@ -145,6 +186,7 @@ def admin_customers():
 
     cur.close()
     conn.close()
+
     return render_template("admin_customers.html", customers=customers)
 
 
@@ -158,56 +200,82 @@ def add_customer():
 
     hashed_password = generate_password_hash(password)
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     cur.execute("""
         INSERT INTO users (full_name, email, contact_number, address, password, role)
         VALUES (%s, %s, %s, %s, %s, 'customer')
     """, (name, email, contact_number, address, hashed_password))
-    mysql.connection.commit()
+
+    conn.commit()
+
     cur.close()
+    conn.close()
 
     flash("Customer added successfully!", "success")
     return redirect(url_for("admin_customers"))
 
 #BLOCK CUSTOMERS 
+# ---------------- Block User ----------------
 @app.route("/admin/block/<int:user_id>")
 def block_user(user_id):
+    conn = get_db_connection()
     cursor = conn.cursor()
+
     cursor.execute("UPDATE users SET status='blocked' WHERE id=%s", (user_id,))
     conn.commit()
+
+    cursor.close()
+    conn.close()
+
     return redirect("/admin/customers")
-#UNBLOCK 
+
+
+# ---------------- Unblock User ----------------
 @app.route("/admin/unblock/<int:user_id>")
 def unblock_user(user_id):
+    conn = get_db_connection()
     cursor = conn.cursor()
+
     cursor.execute("UPDATE users SET status='active' WHERE id=%s", (user_id,))
     conn.commit()
+
+    cursor.close()
+    conn.close()
+
     return redirect("/admin/customers")
-#GET APPLIANCES
+
+
 # ---------------- Admin Dashboard ----------------
 @app.route("/admin")
 def admin_dashboard():
-    cur = mysql.connection.cursor()
-    # Get appliances
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # Appliances
     cur.execute("SELECT * FROM appliances")
     appliances = cur.fetchall()
 
-    # Get customers
+    # Customers
     cur.execute("SELECT * FROM users")
     customers = cur.fetchall()
 
-    # Get loan applications
+    # Loans
     cur.execute("SELECT * FROM loans")
     loans = cur.fetchall()
 
-    # Get payments
+    # Payments
     cur.execute("SELECT * FROM payments")
     payments = cur.fetchall()
 
+    # Orders
     cur.execute("SELECT * FROM orders")
     orders = cur.fetchall()
 
     cur.close()
+    conn.close()
+
     return render_template(
         "admin.html",
         appliances=appliances,
@@ -216,9 +284,9 @@ def admin_dashboard():
         payments=payments,
         order=orders
     )
-# Add new appliance
 
 
+# ---------------- Upload Config ----------------
 UPLOAD_FOLDER = "static/uploads/appliances"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
@@ -234,14 +302,19 @@ def admin_add_appliance():
 
         image_path_db = None
 
+        # ---------------- SAVE IMAGE ----------------
         if image and image.filename != "":
             filename = secure_filename(image.filename)
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
             image_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             image.save(image_path)
+
             image_path_db = f"uploads/appliances/{filename}"
 
-        cur = mysql.connection.cursor()
+        # ---------------- DB CONNECTION ----------------
+        conn = get_db_connection()
+        cur = conn.cursor()
 
         # 1️⃣ Insert appliance
         cur.execute("""
@@ -249,16 +322,17 @@ def admin_add_appliance():
             VALUES (%s, %s, %s, %s, %s)
         """, (name, category, price, stock, image_path_db))
 
-        appliance_id = cur.lastrowid  # get inserted appliance ID
+        appliance_id = cur.lastrowid
 
-        # 2️⃣ Insert stock movement (STOCK IN)
+        # 2️⃣ Insert stock movement
         cur.execute("""
             INSERT INTO stock_movements (appliance_id, movement_type, quantity, reference_note)
             VALUES (%s, %s, %s, %s)
         """, (appliance_id, 'stock_in', stock, 'Initial stock added'))
 
-        mysql.connection.commit()
+        conn.commit()
         cur.close()
+        conn.close()
 
         flash("Appliance added successfully with stock recorded.", "success")
         return redirect(url_for("admin_appliances"))
@@ -269,25 +343,23 @@ def admin_add_appliance():
 
 
 
-#DELETE APPLIANCES
-# Delete appliance
+# ---------------- DELETE APPLIANCE ----------------
 @app.route("/admin/appliances/delete/<int:appliance_id>")
 def delete_appliance(appliance_id):
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     cur.execute("DELETE FROM appliances WHERE id = %s", (appliance_id,))
-    mysql.connection.commit()
+
+    conn.commit()
     cur.close()
+    conn.close()
+
     flash("Appliance deleted successfully!", "success")
     return redirect(url_for("admin_appliances"))
 
 
-def login_required(f):
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return wrap
+# ---------------- LOGIN REQUIRED ----------------
 def login_required(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -296,7 +368,8 @@ def login_required(f):
         return f(*args, **kwargs)
     return wrap
 
-# 4️⃣ SIGNUP
+
+# ---------------- SIGNUP ----------------
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -307,24 +380,27 @@ def signup():
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
 
-        # Check for empty fields
+        # Validation
         if not full_name or not email or not password or not confirm_password or not contact_number or not address:
             return "All fields are required"
 
-        # Check if passwords match
         if password != confirm_password:
             return "Passwords do not match"
 
         hashed_password = generate_password_hash(password)
 
         try:
-            cur = mysql.connection.cursor()
-            cur.execute(
-                "INSERT INTO users (full_name, email, contact_number, address, password) VALUES (%s, %s, %s, %s, %s)",
-                (full_name, email, contact_number, address, hashed_password)
-            )
-            mysql.connection.commit()
+            conn = get_db_connection()
+            cur = conn.cursor()
+
+            cur.execute("""
+                INSERT INTO users (full_name, email, contact_number, address, password)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (full_name, email, contact_number, address, hashed_password))
+
+            conn.commit()
             cur.close()
+            conn.close()
 
             return redirect(url_for("login"))
 
@@ -341,21 +417,24 @@ print(hashed)
 
 
 
-# 5️⃣ LOGIN
-
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import check_password_hash
 
+# ---------------- LOGIN ----------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
 
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
         cur.execute("SELECT * FROM users WHERE email = %s", (email,))
         user = cur.fetchone()
+
         cur.close()
+        conn.close()
 
         if user is None:
             flash("Email not found", "danger")
@@ -363,57 +442,60 @@ def login():
 
         db_password = user["password"]
 
-        # Verify the password
         if check_password_hash(db_password, password):
-            # Save user info in session
             session["user_id"] = user["id"]
             session["user_name"] = user["full_name"]
             session["role"] = user["role"]
 
-            # Redirect based on role
             if user["role"] == "admin":
-                return redirect(url_for("admin_dashboard"))  # Make sure this route exists
+                return redirect(url_for("admin_dashboard"))
             elif user["role"] == "customer":
                 return redirect(url_for("customer_dashboard"))
             else:
                 flash("Your account role is not recognized.", "warning")
                 return redirect(url_for("login"))
-
         else:
             flash("Incorrect password", "danger")
             return render_template("login.html")
 
     return render_template("login.html")
 
+
+# ---------------- SESSION CHECK ----------------
 @app.route('/check-session')
 def check_session():
     return str(session.get('user_id'))
 
 
+# ---------------- LOGOUT ----------------
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("index1"))
 
+
+# ---------------- HOME ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Load cascades
 FACE_CASCADE = cv2.CascadeClassifier(os.path.join(BASE_DIR, "haarcascades", "haarcascade_frontalface_default.xml"))
 EYE_CASCADE = cv2.CascadeClassifier(os.path.join(BASE_DIR, "haarcascades", "haarcascade_eye.xml"))
 
-# Create uploads folder
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-# Blink tracking
 blink_detected = False
+
 
 @app.route("/")
 def home():
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     cur.execute("SELECT * FROM appliances")
     appliances = cur.fetchall()
+
     cur.close()
+    conn.close()
 
     return render_template("index1.html", appliance=appliances)
 
@@ -421,165 +503,198 @@ def home():
 @app.route("/train", methods=["POST"])
 def train():
     file = request.files.get("id_photo")
-    if not file:
+
+    if not file or file.filename == "":
         return jsonify({"success": False, "message": "No ID uploaded."})
-    id_path = os.path.join(UPLOADS_DIR, "id.jpg")
-    file.save(id_path)
-    return jsonify({"success": True, "message": "ID uploaded successfully."})
+
+    try:
+        id_path = os.path.join(UPLOADS_DIR, "id.jpg")
+        file.save(id_path)
+
+        return jsonify({"success": True, "message": "ID uploaded successfully."})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 
 # -------- Blink check --------
 @app.route("/blink_check", methods=["POST"])
 def blink_check():
     global blink_detected
-    data = request.json["image"].split(",")[1]
-    img_bytes = base64.b64decode(data)
-    np_img = np.frombuffer(img_bytes, np.uint8)
-    frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    faces = FACE_CASCADE.detectMultiScale(gray, 1.3, 5)
-    blink_detected = False
+    try:
+        data = request.json["image"].split(",")[1]
+        img_bytes = base64.b64decode(data)
 
-    for (x, y, w, h) in faces:
-        face_roi = gray[y:y+h, x:x+w]
-        eyes = EYE_CASCADE.detectMultiScale(face_roi, 1.3, 5)
-        if len(eyes) == 0:
-            blink_detected = True
-            break
+        np_img = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
-    return jsonify({"blinked": blink_detected})
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        faces = FACE_CASCADE.detectMultiScale(gray, 1.3, 5)
+
+        blink_detected = False
+
+        for (x, y, w, h) in faces:
+            face_roi = gray[y:y+h, x:x+w]
+            eyes = EYE_CASCADE.detectMultiScale(face_roi, 1.3, 5)
+
+            if len(eyes) == 0:
+                blink_detected = True
+                break
+
+        return jsonify({"blinked": blink_detected})
+
+    except Exception as e:
+        return jsonify({"blinked": False, "error": str(e)})
 
 
 # -------- Verify selfie vs ID --------
-UPLOADS_DIR = "static/uploads"  # Make sure this exists and is writable
+UPLOADS_DIR = "static/uploads"
+
 
 @app.route("/verify", methods=["POST"])
 def verify():
     global blink_detected
+
     if not blink_detected:
         return jsonify({"success": False, "message": "Blink not detected yet."})
 
-    # Get selfie image
-    image_data = request.form.get("image_data").split(",")[1]
-    img_bytes = base64.b64decode(image_data)
-    np_img = np.frombuffer(img_bytes, np.uint8)
-    selfie = cv2.imdecode(np_img, cv2.IMREAD_GRAYSCALE)
+    try:
+        # ---------------- SELFIE ----------------
+        image_data = request.form.get("image_data").split(",")[1]
+        img_bytes = base64.b64decode(image_data)
 
-    # Load uploaded ID
-    id_path_temp = os.path.join(UPLOADS_DIR, "id.jpg")
-    if not os.path.exists(id_path_temp):
-        return jsonify({"success": False, "message": "ID not uploaded."})
+        np_img = np.frombuffer(img_bytes, np.uint8)
+        selfie = cv2.imdecode(np_img, cv2.IMREAD_GRAYSCALE)
 
-    id_img = cv2.imread(id_path_temp, cv2.IMREAD_GRAYSCALE)
+        # ---------------- ID IMAGE ----------------
+        id_path_temp = os.path.join(UPLOADS_DIR, "id.jpg")
 
-    # Resize to same size
-    id_img = cv2.resize(id_img, (selfie.shape[1], selfie.shape[0]))
+        if not os.path.exists(id_path_temp):
+            return jsonify({"success": False, "message": "ID not uploaded."})
 
-    # Compute similarity
-    diff = cv2.absdiff(selfie, id_img)
-    score = np.sum(diff)
-    max_diff = selfie.shape[0] * selfie.shape[1] * 255
-    similarity = 100 - (score / max_diff * 100)
+        id_img = cv2.imread(id_path_temp, cv2.IMREAD_GRAYSCALE)
 
-    if similarity >= 70:
-        loan = session.get("loan_data")
-        if loan is None:
-            return jsonify({"success": False, "message": "Loan data missing. Please apply again."})
+        id_img = cv2.resize(id_img, (selfie.shape[1], selfie.shape[0]))
 
-        cur = mysql.connection.cursor()
+        # ---------------- FACE MATCH ----------------
+        diff = cv2.absdiff(selfie, id_img)
+        score = np.sum(diff)
 
-        # 1️⃣ Insert loan
-        cur.execute("""
-            INSERT INTO loans 
-            (user_id, appliance_id, appliance_name, category, full_name, email, mobile, occupation, salary, months, amount, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            session["user_id"],
-            loan["appliance_id"],
-            loan["appliance_name"],
-            loan["category"],
-            loan["full_name"],
-            loan["email"],
-            loan["mobile"],
-            loan["occupation"],
-            loan["salary"],
-            loan["months"],
-            loan["amount"],
-            "pending"
-        ))
+        max_diff = selfie.shape[0] * selfie.shape[1] * 255
+        similarity = 100 - (score / max_diff * 100)
 
-        mysql.connection.commit()
+        # ---------------- SUCCESS ----------------
+        if similarity >= 70:
+            loan = session.get("loan_data")
 
-        loan_id = cur.lastrowid  # Get inserted loan ID
+            if loan is None:
+                return jsonify({"success": False, "message": "Loan data missing. Please apply again."})
 
-        # 2️⃣ Save ID and selfie
-        id_path = os.path.join(
-            "static", "uploads",
-            f"id_{session['user_id']}_{loan['appliance_id']}.jpg"
-        ).replace("\\", "/")
+            conn = get_db_connection()
+            cur = conn.cursor()
 
-        selfie_path = os.path.join(
-            "static", "uploads",
-            f"selfie_{session['user_id']}_{loan['appliance_id']}.jpg"
-        ).replace("\\", "/")
+            # 1️⃣ INSERT LOAN
+            cur.execute("""
+                INSERT INTO loans 
+                (user_id, appliance_id, appliance_name, category, full_name, email, mobile, occupation, salary, months, amount, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                session["user_id"],
+                loan["appliance_id"],
+                loan["appliance_name"],
+                loan["category"],
+                loan["full_name"],
+                loan["email"],
+                loan["mobile"],
+                loan["occupation"],
+                loan["salary"],
+                loan["months"],
+                loan["amount"],
+                "pending"
+            ))
 
-        os.rename(id_path_temp, id_path)
-        cv2.imwrite(selfie_path, selfie)
+            conn.commit()
+            loan_id = cur.lastrowid
 
-        # 3️⃣ Update loan with file paths
-        cur.execute("""
-            UPDATE loans
-            SET id_photo_path=%s, selfie_path=%s
-            WHERE id=%s
-        """, (id_path, selfie_path, loan_id))
+            # 2️⃣ SAVE IMAGES
+            id_path = os.path.join(
+                "static", "uploads",
+                f"id_{session['user_id']}_{loan['appliance_id']}.jpg"
+            ).replace("\\", "/")
 
-        mysql.connection.commit()
+            selfie_path = os.path.join(
+                "static", "uploads",
+                f"selfie_{session['user_id']}_{loan['appliance_id']}.jpg"
+            ).replace("\\", "/")
 
-        # 🔔 Create admin notification after loan submission
-        message = f"{loan['full_name']} applied for a loan on {loan['appliance_name']}"
+            os.rename(id_path_temp, id_path)
+            cv2.imwrite(selfie_path, selfie)
 
-        cur.execute("""
-        INSERT INTO admin_notifications
-        (user_id, payment_id, message, is_read, created_at, link, loan_id)
-        VALUES (%s,%s,%s,%s,NOW(),%s,%s)
-        """, (
-        42,        # admin
-        None,      # payment_id
-        message,
-        0,
-        f"/admin/loan/{loan_id}",
-        loan_id
-        ))
+            # 3️⃣ UPDATE LOAN PATHS
+            cur.execute("""
+                UPDATE loans
+                SET id_photo_path=%s, selfie_path=%s
+                WHERE id=%s
+            """, (id_path, selfie_path, loan_id))
 
-        mysql.connection.commit()
+            conn.commit()
 
-        cur.close()
+            # 4️⃣ ADMIN NOTIFICATION
+            message = f"{loan['full_name']} applied for a loan on {loan['appliance_name']}"
 
-        # Clear session
-        session.pop("loan_data", None)
+            cur.execute("""
+                INSERT INTO admin_notifications
+                (user_id, payment_id, message, is_read, created_at, link, loan_id)
+                VALUES (%s,%s,%s,%s,NOW(),%s,%s)
+            """, (
+                42,
+                None,
+                message,
+                0,
+                f"/admin/loan/{loan_id}",
+                loan_id
+            ))
 
-        return jsonify({
-            "success": True,
-            "message": "✅ Face matched! Your loan has been submitted and is pending admin approval."
-        })
+            conn.commit()
+            cur.close()
+            conn.close()
 
-    else:
-        return jsonify({
-            "success": False,
-            "message": f"❌ Face does not match! Similarity: {similarity:.1f}%"
-        })
+            session.pop("loan_data", None)
 
+            return jsonify({
+                "success": True,
+                "message": "✅ Face matched! Loan submitted successfully."
+            })
+
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"❌ Face mismatch! Similarity: {similarity:.1f}%"
+            })
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+# ---------------- LOAN DETAILS ----------------
 @app.route("/admin/loan_details/<int:loan_id>")
 def loan_details(loan_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     cur.execute("""
         SELECT *, id_photo_path, selfie_path
         FROM loans
         WHERE id=%s
     """, (loan_id,))
+
     loan = cur.fetchone()
+
     cur.close()
+    conn.close()
+
     return render_template("admin_loan_details.html", loan=loan)
 
 
@@ -590,9 +705,10 @@ def auto_send_reminders():
     try:
         with app.app_context():
 
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            conn = get_db_connection()
+            cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-            # Get payments due in next 7 days and not yet paid
+            # ---------------- GET PAYMENTS ----------------
             cur.execute("""
                 SELECT 
                     p.id AS payment_id,
@@ -618,15 +734,21 @@ def auto_send_reminders():
             if not payments:
                 print("No reminders needed today.")
                 cur.close()
+                conn.close()
                 return
 
-            # Connect to Gmail SMTP
+            # ---------------- EMAIL SETUP ----------------
             yag = yagmail.SMTP(user=EMAIL_USER, password=EMAIL_APP_PASSWORD)
 
             for p in payments:
 
-                days_left = (p['due_date'] - datetime.now()).days
-                long_due_date = p['due_date'].strftime("%B %d, %Y")
+                # Safe date handling
+                due_date = p['due_date']
+                if isinstance(due_date, str):
+                    due_date = datetime.strptime(due_date, "%Y-%m-%d")
+
+                days_left = (due_date - datetime.now()).days
+                long_due_date = due_date.strftime("%B %d, %Y")
 
                 subject = f"Reminder: {days_left} day(s) before due date"
 
@@ -645,31 +767,30 @@ Thank you,
 Greater RJ Appliance and Trading Corporation
                 """
 
-                # Send email with custom sender name
+                # Send email
                 yag.send(
                     to=p['email'],
                     subject=subject,
                     contents=body,
-                    headers={"From": "Greater RJ Appliance and Trading Corporation <{}>".format(EMAIL_USER)}
+                    headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
                 )
 
-                # Update reminder_sent_date
-                update_cur = mysql.connection.cursor()
-                update_cur.execute("""
+                # ---------------- UPDATE REMINDER ----------------
+                cur.execute("""
                     UPDATE payments
                     SET reminder_sent_date = NOW()
                     WHERE id = %s
                 """, (p['payment_id'],))
-                mysql.connection.commit()
-                update_cur.close()
+
+                conn.commit()
 
             cur.close()
+            conn.close()
+
             print(f"Sent {len(payments)} reminder(s).")
 
     except Exception as e:
         print("Reminder Error:", e)
-from flask import request, render_template
-
 @app.route("/admin/payments")
 def admin_payments():
     loan_id = request.args.get('loan_id', type=int)
@@ -677,8 +798,8 @@ def admin_payments():
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
+    # ---------------- IF VIEWING SPECIFIC LOAN ----------------
     if loan_id:
-        # Fetch payments for this loan
         cur.execute("""
             SELECT 
                 p.*, l.appliance_id, a.appliance_name,
@@ -690,19 +811,22 @@ def admin_payments():
             WHERE l.id = %s
             ORDER BY p.month_no ASC
         """, (loan_id,))
+
         payments = cur.fetchall()
+
         cur.close()
         conn.close()
+
         return render_template("payments.html", loans=[{
             'appliance_name': payments[0]['appliance_name'] if payments else '',
-            'status': 'ongoing',  # optional, compute actual
-            'amount': 0,  # optional
+            'status': 'ongoing',
+            'amount': 0,
             'paid_amount_sum': 0,
             'balance': 0,
-            'payments': payments
+            'payments': payments or []
         }])
 
-    # Otherwise show all customers
+    # ---------------- ELSE: SHOW ALL CUSTOMERS ----------------
     cur.execute("""
         SELECT 
             u.id, 
@@ -719,9 +843,12 @@ def admin_payments():
         FROM users u
         ORDER BY u.full_name ASC
     """)
+
     customers = cur.fetchall()
+
     cur.close()
     conn.close()
+
     return render_template("admin_payments.html", customers=customers)
 
 
@@ -742,7 +869,7 @@ def view_customer_payments(user_id):
     """, (user_id,))
     customer = cur.fetchone()
 
-    # Get payments for that customer
+    # Get payments
     cur.execute("""
         SELECT 
             p.id,
@@ -760,6 +887,7 @@ def view_customer_payments(user_id):
         WHERE l.user_id = %s
         ORDER BY a.appliance_name ASC, p.month_no ASC
     """, (user_id,))
+
     payments = cur.fetchall()
 
     cur.close()
@@ -775,9 +903,10 @@ def view_customer_payments(user_id):
 @app.route("/mark_payment_paid/<int:payment_id>", methods=["POST"])
 def mark_payment_paid(payment_id):
     try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1️⃣ Fetch payment details with customer info
+        # ---------------- FETCH PAYMENT ----------------
         cur.execute("""
             SELECT p.*, u.full_name, u.email, a.appliance_name
             FROM payments p
@@ -786,27 +915,31 @@ def mark_payment_paid(payment_id):
             JOIN appliances a ON l.appliance_id = a.id
             WHERE p.id = %s
         """, (payment_id,))
+
         payment = cur.fetchone()
 
         if not payment:
             cur.close()
+            conn.close()
             flash("Payment not found ❌", "danger")
             return redirect(request.referrer)
 
-        # 2️⃣ Update payment status to 'paid'
+        # ---------------- UPDATE PAYMENT ----------------
         cur.execute("""
             UPDATE payments 
             SET status = 'paid', paid_at = NOW()
             WHERE id = %s
         """, (payment_id,))
-        mysql.connection.commit()
-        cur.close()
 
-        # 3️⃣ Generate PDF receipt in memory
+        conn.commit()
+
+        # ---------------- CREATE PDF ----------------
         pdf_buffer = io.BytesIO()
-        c = canvas.Canvas(pdf_buffer, pagesize=(300, 350))  # small receipt
+        c = canvas.Canvas(pdf_buffer, pagesize=(300, 350))
+
         c.setFont("Helvetica-Bold", 12)
         c.drawString(20, 220, "Greater RJ Appliance and Trading Corporation")
+
         c.setFont("Helvetica", 10)
         c.drawString(20, 200, f"Customer: {payment['full_name']}")
         c.drawString(20, 185, f"Appliance: {payment['appliance_name']}")
@@ -814,29 +947,35 @@ def mark_payment_paid(payment_id):
         c.drawString(20, 155, f"Payment Date: {datetime.now().strftime('%B %d, %Y')}")
         c.drawString(20, 140, f"Receipt #: {payment_id}")
         c.drawString(20, 120, "Thank you for your payment!")
-        c.showPage()
-        c.save()
-        pdf_buffer.seek(0)  # rewind buffer
 
-        # 4️⃣ Send email with PDF receipt attached
+        c.save()
+        pdf_buffer.seek(0)
+
+        # ---------------- EMAIL ----------------
         yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
+
         subject = f"Payment Receipt – {payment['appliance_name']}"
+
         body = f"""
 Hello {payment['full_name']},
 
-Your payment of ₱{payment['amount_due']:.2f} for "{payment['appliance_name']}" has been received.
+Your payment of ₱{payment['amount_due']:.2f} has been received.
 
 Attached is your official receipt.
 
 Thank you,
 Greater RJ Appliance and Trading Corporation
         """
+
         yag.send(
-                    to=p['email'],
-                    subject=subject,
-                    contents=body,
-                    headers={"From": "Greater RJ Appliance and Trading Corporation <{}>".format(EMAIL_USER)}
-                , attachments=[pdf_buffer])
+            to=payment['email'],
+            subject=subject,
+            contents=body,
+            attachments=[pdf_buffer]
+        )
+
+        cur.close()
+        conn.close()
 
         flash(f"Payment marked as paid ✅ and receipt sent to {payment['full_name']}.", "success")
         return redirect(request.referrer)
@@ -848,52 +987,85 @@ Greater RJ Appliance and Trading Corporation
 
 
 
+from datetime import date
+
 @app.route("/admin/loans")
 def admin_loans():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("""
-        UPDATE payments
-        SET status = 'overdue'
-        WHERE status = 'pending'
-        AND due_date < %s
-    """, (date.today(),))
-    mysql.connection.commit()
- # 2️⃣ Get overdue payments (for notifications)
-    cur.execute("""
-        SELECT p.id, l.user_id, p.amount_due, p.due_date
-        FROM payments p
-        JOIN loans l ON p.loan_id = l.id
-        WHERE p.status = 'overdue'
-    """)
-    overdues = cur.fetchall()
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # 3️⃣ Insert notifications
-    for o in overdues:
-        msg = f"Your payment of ₱{o['amount_due']:.2f} due on {o['due_date']} is OVERDUE."
-
+    try:
+        # =========================
+        # 1. Auto-update overdue payments
+        # =========================
         cur.execute("""
-            INSERT INTO notifications (user_id, message)
-            VALUES (%s, %s)
-        """, (o['user_id'], msg))
+            UPDATE payments
+            SET status = 'overdue'
+            WHERE status = 'pending'
+            AND due_date < %s
+        """, (date.today(),))
 
-    mysql.connection.commit()
-    for o in overdues:
+        conn.commit()
+
+        # =========================
+        # 2. Get overdue payments
+        # =========================
         cur.execute("""
-    UPDATE payments
-    SET notified = 1
-    WHERE id = %s
-    """, (o['id'],))
+            SELECT p.id, l.user_id, p.amount_due, p.due_date
+            FROM payments p
+            JOIN loans l ON p.loan_id = l.id
+            WHERE p.status = 'overdue' AND p.notified = 0
+        """)
+        overdues = cur.fetchall()
 
-    cur.execute("""
-        SELECT loans.id, loans.status, loans.amount,loans.months, users.full_name, appliances.appliance_name
-        FROM loans
-        JOIN users ON loans.user_id = users.id
-        JOIN appliances ON loans.appliance_id = appliances.id
-        ORDER BY loans.id DESC
-    """)
-    loans = cur.fetchall()
-    cur.close()
-    return render_template("admin_loans.html", loan=loans)
+        # =========================
+        # 3. Insert notifications
+        # =========================
+        for o in overdues:
+            msg = f"Your payment of ₱{float(o['amount_due'] or 0):.2f} due on {o['due_date']} is OVERDUE."
+
+            cur.execute("""
+                INSERT INTO notifications (user_id, message)
+                VALUES (%s, %s)
+            """, (o['user_id'], msg))
+
+            cur.execute("""
+                UPDATE payments
+                SET notified = 1
+                WHERE id = %s
+            """, (o['id'],))
+
+        conn.commit()
+
+        # =========================
+        # 4. FILTER LOGIC
+        # =========================
+        status_filter = request.args.get("status")
+
+        base_query = """
+            SELECT loans.id, loans.status, loans.amount, loans.months, 
+                   users.full_name, appliances.appliance_name
+            FROM loans
+            JOIN users ON loans.user_id = users.id
+            JOIN appliances ON loans.appliance_id = appliances.id
+        """
+
+        params = []
+
+        if status_filter:
+            base_query += " WHERE loans.status = %s"
+            params.append(status_filter)
+
+        base_query += " ORDER BY loans.id DESC"
+
+        cur.execute(base_query, params)
+        loans = cur.fetchall()
+
+        return render_template("admin_loans.html", loans=loans)
+
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.route("/customer_loans")
@@ -903,35 +1075,46 @@ def customer_loans():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # =========================
     # Get all loans for this user
+    # =========================
     cur.execute("""
         SELECT loans.id, a.appliance_name, loans.amount, loans.months, loans.status
         FROM loans 
         JOIN appliances a ON loans.appliance_id = a.id
         WHERE loans.user_id = %s
+        ORDER BY loans.id DESC
     """, (user_id,))
+
     loans = cur.fetchall()
 
-    # Optionally, get payment schedule
+    # =========================
+    # Get payment schedule per loan
+    # =========================
     for loan in loans:
         cur.execute("""
             SELECT month_no, amount_due, due_date, status
             FROM payments
-            WHERE loan_id=%s
+            WHERE loan_id = %s
             ORDER BY month_no
         """, (loan['id'],))
+
         loan['payments'] = cur.fetchall()
 
     cur.close()
+    conn.close()
+
     return render_template("customer_loans.html", loans=loans)
 
 
 
 from flask import flash
 
-@app.route("/add_to_cart/<int:appliance_id>", methods=["POST"])
+@app.route("/add_to_cart/<int:appliance_id>")
 def add_to_cart(appliance_id):
 
     if "user_id" not in session:
@@ -940,9 +1123,10 @@ def add_to_cart(appliance_id):
 
     user_id = session["user_id"]
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Check if item already in cart
+    # ---------------- CHECK EXISTING ITEM ----------------
     cur.execute("""
         SELECT * FROM cart
         WHERE user_id = %s AND appliance_id = %s
@@ -951,7 +1135,6 @@ def add_to_cart(appliance_id):
     existing = cur.fetchone()
 
     if existing:
-        # Update quantity
         cur.execute("""
             UPDATE cart
             SET quantity = quantity + 1
@@ -961,7 +1144,6 @@ def add_to_cart(appliance_id):
         flash("Item quantity updated in cart 🛒", "success")
 
     else:
-        # Insert new row
         cur.execute("""
             INSERT INTO cart (user_id, appliance_id, quantity, date_added)
             VALUES (%s, %s, 1, NOW())
@@ -969,8 +1151,9 @@ def add_to_cart(appliance_id):
 
         flash("Item successfully added to cart 🛒", "success")
 
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
     return redirect(url_for("index1"))
 
@@ -984,7 +1167,8 @@ def cart():
 
     user_id = session["user_id"]
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     cur.execute("""
         SELECT c.appliance_id, c.quantity,
@@ -995,7 +1179,53 @@ def cart():
     """, (user_id,))
 
     items = cur.fetchall()
+
     cur.close()
+    conn.close()
+
+    cart_items = []
+    total = 0
+
+    for item in items:
+        subtotal = float(item["price"]) * int(item["quantity"])
+        total += subtotal
+
+        cart_items.append({
+            "appliance_id": item["appliance_id"],
+            "appliance_name": item["appliance_name"],
+            "price": float(item["price"]),
+            "quantity": int(item["quantity"]),
+            "subtotal": subtotal,
+            "image": item["image"]
+        })
+
+    return render_template(
+        "cart_modal.html",
+        cart_items=cart_items,
+        total=total
+    )
+def cart():
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT c.appliance_id, c.quantity,
+               a.appliance_name, a.price, a.image
+        FROM cart c
+        JOIN appliances a ON c.appliance_id = a.id
+        WHERE c.user_id = %s
+    """, (user_id,))
+
+    items = cur.fetchall()
+
+    cur.close()
+    conn.close()
 
     cart_items = []
     total = 0
@@ -1019,6 +1249,8 @@ def cart():
 
 
 
+
+
 @app.route("/update_cart/<int:appliance_id>", methods=["POST"])
 def update_cart(appliance_id):
 
@@ -1028,7 +1260,8 @@ def update_cart(appliance_id):
     action = request.form.get("action")
     user_id = session["user_id"]
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     if action == "increase":
         cur.execute("""
@@ -1044,7 +1277,6 @@ def update_cart(appliance_id):
             WHERE user_id = %s AND appliance_id = %s
         """, (user_id, appliance_id))
 
-        # Remove if quantity <= 0
         cur.execute("""
             DELETE FROM cart
             WHERE user_id = %s AND appliance_id = %s AND quantity <= 0
@@ -1056,88 +1288,89 @@ def update_cart(appliance_id):
             WHERE user_id = %s AND appliance_id = %s
         """, (user_id, appliance_id))
 
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
     return redirect(url_for("cart"))
 
 @app.route("/checkout", methods=["POST"])
 def checkout():
 
-    # 1️⃣ Must be logged in
     if "user_id" not in session:
         flash("Please login first", "danger")
         return redirect(url_for("login"))
 
-    cart = session.get("cart", {})
+    user_id = session["user_id"]
 
-    if not cart:
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # ---------------- 1. GET CART FROM DB ----------------
+    cur.execute("""
+        SELECT c.appliance_id, c.quantity,
+               a.appliance_name, a.price
+        FROM cart c
+        JOIN appliances a ON c.appliance_id = a.id
+        WHERE c.user_id = %s
+    """, (user_id,))
+
+    cart_items = cur.fetchall()
+
+    if not cart_items:
         flash("Your cart is empty", "warning")
-        return redirect(url_for("customer"))
+        cur.close()
+        conn.close()
+        return redirect(url_for("index1"))
 
-    # 2️⃣ Fetch appliance details from DB
-    ids = list(cart.keys())
-
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute(
-        f"SELECT * FROM appliances WHERE id IN ({','.join(['%s'] * len(ids))})",
-        ids
-    )
-    appliances = cur.fetchall()
-
-    if not appliances:
-        flash("Invalid cart items. Please try again.", "danger")
-        session.pop("cart", None)
-        return redirect(url_for("customer"))
-
-    # 3️⃣ Compute total
+    # ---------------- 2. COMPUTE TOTAL ----------------
     total_amount = 0
 
-    for a in appliances:
-        qty = cart[str(a["id"])]
-        total_amount += float(a["price"]) * qty
+    for item in cart_items:
+        total_amount += float(item["price"]) * int(item["quantity"])
 
-    # 4️⃣ Insert into ORDERS table
+    # ---------------- 3. INSERT ORDER ----------------
     cur.execute("""
         INSERT INTO orders (user_id, full_name, email, total_amount, status)
         VALUES (%s, %s, %s, %s, 'pending')
     """, (
-        session["user_id"],
-        session.get("full_name"),
+        user_id,
+        session.get("user_name"),
         session.get("email"),
         total_amount
     ))
 
     order_id = cur.lastrowid
 
-    # 5️⃣ Insert into ORDER_ITEMS table
-    for a in appliances:
-        qty = cart[str(a["id"])]
-
+    # ---------------- 4. INSERT ORDER ITEMS ----------------
+    for item in cart_items:
         cur.execute("""
             INSERT INTO order_items
             (order_id, appliance_id, appliance_name, price, quantity)
             VALUES (%s, %s, %s, %s, %s)
         """, (
             order_id,
-            a["id"],
-            a["appliance_name"],
-            a["price"],
-            qty
+            item["appliance_id"],
+            item["appliance_name"],
+            item["price"],
+            item["quantity"]
         ))
 
-        # Optional but recommended: reduce stock
+        # Reduce stock safely
         cur.execute("""
             UPDATE appliances
             SET stock = stock - %s
             WHERE id = %s
-        """, (qty, a["id"]))
+        """, (item["quantity"], item["appliance_id"]))
 
-    mysql.connection.commit()
+    conn.commit()
+
+    # ---------------- 5. CLEAR CART ----------------
+    cur.execute("DELETE FROM cart WHERE user_id = %s", (user_id,))
+    conn.commit()
+
     cur.close()
-
-    # 6️⃣ Clear cart
-    session.pop("cart", None)
+    conn.close()
 
     flash("✅ Order placed successfully!", "success")
     return redirect(url_for("index1"))
@@ -1145,6 +1378,9 @@ def checkout():
 
 
 
+# ==============================
+# ADMIN ORDERS
+# ==============================
 @app.route("/admin/orders")
 def admin_orders():
 
@@ -1158,10 +1394,14 @@ def admin_orders():
         JOIN users u ON o.user_id = u.id
         ORDER BY o.created_at DESC
     """)
+
     orders = cur.fetchall()
 
     # Fetch items per order
     for order in orders:
+
+        order_id = order.get("id")  # FIXED: safe key
+
         cur.execute("""
             SELECT 
                 a.appliance_name,
@@ -1171,13 +1411,13 @@ def admin_orders():
             FROM order_items oi
             JOIN appliances a ON oi.appliance_id = a.id
             WHERE oi.order_id = %s
-        """, (order["order_id"],))
+        """, (order_id,))
 
         items = cur.fetchall()
 
         total = 0
         for item in items:
-            item["subtotal"] = item["price"] * item["quantity"]
+            item["subtotal"] = float(item["price"]) * int(item["quantity"])
             total += item["subtotal"]
 
         order["items"] = items
@@ -1189,23 +1429,15 @@ def admin_orders():
     return render_template("admin_orders.html", orders=orders)
 
 
-
-
-
-
-
-
-
-
-
-
+# ==============================
+# ADMIN DASHBOARD
+# ==============================
 @app.route("/dashboard")
 def dashboard():
-    # Example: get some stats for admin dashboard
+
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Example counts
     cur.execute("SELECT COUNT(*) AS total_customers FROM users")
     total_customers = cur.fetchone()["total_customers"]
 
@@ -1215,15 +1447,24 @@ def dashboard():
     cur.close()
     conn.close()
 
-    return render_template("admin_dashboard.html", 
-                           total_customers=total_customers,
-                           total_loans=total_loans)
+    return render_template(
+        "admin_dashboard.html",
+        total_customers=total_customers,
+        total_loans=total_loans
+    )
 
 
+# ==============================
+# CUSTOMER DASHBOARD
+# ==============================
 @app.route('/customer/dashboard')
 def customer_dashboard():
     return render_template('customer_dashboard.html')
 
+
+# ==============================
+# CUSTOMER PAGE
+# ==============================
 @app.route('/customer')
 def customer():
     return render_template('customer.html')
@@ -1234,31 +1475,54 @@ def customer():
 
 
 
+# ==============================
+# PAYMENT SCHEDULE (ADMIN)
+# ==============================
 @app.route('/admin/payment_schedule/<int:loan_id>')
 def admin_payment_schedule(loan_id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    cursor.execute("""
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
         SELECT * FROM payment_schedule
         WHERE loan_id = %s
         ORDER BY due_date
     """, (loan_id,))
-    schedule = cursor.fetchall()
 
-    cursor.close()
+    schedule = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
     return render_template('admin_payment_schedule.html', schedule=schedule)
 
+
+# ==============================
+# START FACE VERIFICATION
+# ==============================
 @app.route('/proceed_face_verification', methods=['POST'])
 def proceed_face_verification():
     session['loan_data'] = dict(request.form)
     return redirect(url_for('index'))
 
+
+# ==============================
+# FINAL LOAN SUBMISSION AFTER FACE VERIFICATION
+# ==============================
 @app.route('/face_verified')
 def face_verified():
+
     data = session.get('loan_data')
 
-    cursor = mysql.connection.cursor()
-    cursor.execute("""
+    if not data:
+        flash("Loan data missing. Please try again.", "danger")
+        return redirect(url_for('customer_dashboard'))
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
         INSERT INTO loans (user_id, appliance_id, amount, status)
         VALUES (%s, %s, %s, 'Pending')
     """, (
@@ -1266,26 +1530,46 @@ def face_verified():
         data['appliance_id'],
         data['price']
     ))
-    mysql.connection.commit()
-    cursor.close()
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    session.pop('loan_data', None)
 
     flash("Loan application submitted successfully!", "success")
     return redirect(url_for('customer_dashboard'))
 
+
+# ==============================
+# FACE VERIFICATION PAGE
+# ==============================
 @app.route("/verify")
 def index():
     return render_template("verify.html")
 
+
+# ==============================
+# APPLY LOAN PAGE
+# ==============================
 @app.route("/apply-loan/<int:appliance_id>", methods=["GET"])
 def apply_loan(appliance_id):
+
     if "user_id" not in session:
         flash("Please log in first", "danger")
         return redirect(url_for("login"))
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM appliances WHERE id = %s", (appliance_id,))
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT * FROM appliances WHERE id = %s
+    """, (appliance_id,))
+
     appliance = cur.fetchone()
+
     cur.close()
+    conn.close()
 
     if not appliance:
         flash("Appliance not found.", "danger")
@@ -1296,13 +1580,14 @@ def apply_loan(appliance_id):
 
 @app.route("/submit_loan", methods=["POST"])
 def submit_loan():
+
     if "user_id" not in session:
         flash("Please log in first.", "danger")
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
 
-    # Get form data
+    # ---------------- GET FORM DATA ----------------
     appliance_id = int(request.form["appliance_id"])
     months = int(request.form["months"])
     amount = float(request.form["amount"])
@@ -1312,17 +1597,27 @@ def submit_loan():
     occupation = request.form["occupation"]
     salary = float(request.form["salary"])
 
-    # Fetch appliance details from DB
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT appliance_name, category FROM appliances WHERE id = %s", (appliance_id,))
+    # ---------------- DB CONNECTION ----------------
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # ---------------- FETCH APPLIANCE ----------------
+    cur.execute("""
+        SELECT appliance_name, category 
+        FROM appliances 
+        WHERE id = %s
+    """, (appliance_id,))
+
     appliance = cur.fetchone()
+
     cur.close()
+    conn.close()
 
     if not appliance:
         flash("Appliance not found.", "danger")
         return redirect(url_for("customer_dashboard"))
 
-    # Store all loan data in session for facial verification
+    # ---------------- STORE IN SESSION ----------------
     session["loan_data"] = {
         "user_id": user_id,
         "appliance_id": appliance_id,
@@ -1339,13 +1634,15 @@ def submit_loan():
     }
 
     flash("Please complete facial verification to submit your loan.", "info")
-    return redirect(url_for("verify"))  # Page with facial verification
+    return redirect(url_for("verify"))
 
 
-
-
+# ==============================
+# FINAL LOAN INSERT AFTER FACE SUCCESS
+# ==============================
 @app.route("/loan-face-success")
 def loan_face_success():
+
     if "loan_data" not in session:
         flash("Loan session expired", "danger")
         return redirect(url_for("index1"))
@@ -1353,9 +1650,13 @@ def loan_face_success():
     data = session.pop("loan_data")
     user_id = session["user_id"]
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # ---------------- INSERT LOAN ----------------
     cur.execute("""
-        INSERT INTO loans (user_id, appliance_id, amount, installment_months, status)
+        INSERT INTO loans 
+        (user_id, appliance_id, amount, months, status)
         VALUES (%s, %s, %s, %s, 'Pending')
     """, (
         user_id,
@@ -1364,8 +1665,9 @@ def loan_face_success():
         data["months"]
     ))
 
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
     flash("Loan application submitted successfully!", "success")
     return redirect(url_for("index1"))
@@ -1377,10 +1679,12 @@ def loan_face_success():
 
 @app.route("/approve_loan/<int:loan_id>", methods=["POST"])
 def approve_loan(loan_id):
-    try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1️⃣ Get the loan + user info + appliance name
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        # ---------------- 1. GET LOAN ----------------
         cur.execute("""
             SELECT l.*, u.full_name, u.email, a.appliance_name
             FROM loans l
@@ -1388,33 +1692,48 @@ def approve_loan(loan_id):
             JOIN appliances a ON l.appliance_id = a.id
             WHERE l.id = %s
         """, (loan_id,))
+
         loan = cur.fetchone()
 
         if not loan:
+            cur.close()
+            conn.close()
             flash("Loan not found.", "danger")
             return redirect(url_for("admin_loans"))
 
         if loan['status'] == 'Approved':
+            cur.close()
+            conn.close()
             flash("Loan is already approved.", "info")
             return redirect(url_for("admin_loans"))
 
-        # 2️⃣ Check appliance stock
-        cur.execute("SELECT stock FROM appliances WHERE id=%s", (loan['appliance_id'],))
+        # ---------------- 2. CHECK STOCK ----------------
+        cur.execute("""
+            SELECT stock FROM appliances WHERE id=%s
+        """, (loan['appliance_id'],))
+
         appliance = cur.fetchone()
 
         if not appliance:
+            cur.close()
+            conn.close()
             flash("Appliance not found.", "danger")
             return redirect(url_for("admin_loans"))
 
         if appliance['stock'] <= 0:
+            cur.close()
+            conn.close()
             flash("Insufficient stock to approve this loan.", "danger")
             return redirect(url_for("admin_loans"))
 
-        # 3️⃣ Update loan status to Approved
-        cur.execute("UPDATE loans SET status='Approved' WHERE id=%s", (loan_id,))
+        # ---------------- 3. UPDATE LOAN ----------------
+        cur.execute("""
+            UPDATE loans SET status='Approved'
+            WHERE id=%s
+        """, (loan_id,))
 
-        # 4️⃣ Reduce appliance stock by 1
-        quantity = 1  # If later you support multiple quantity, change this
+        # ---------------- 4. UPDATE STOCK ----------------
+        quantity = 1
         new_stock = appliance['stock'] - quantity
 
         cur.execute("""
@@ -1423,23 +1742,29 @@ def approve_loan(loan_id):
             WHERE id=%s
         """, (new_stock, loan['appliance_id']))
 
-        # 4️⃣.5️⃣ INSERT STOCK MOVEMENT RECORD (🔥 NEW ADDITION)
+        # ---------------- 5. STOCK MOVEMENT ----------------
         cur.execute("""
-    INSERT INTO stock_movements
-        (appliance_id, movement_type, quantity, reference_note, movement_date)
-    VALUES (%s, 'OUT', %s, %s, NOW())
-    """, (
-    loan['appliance_id'],
-    quantity,
-    f"Loan Approved (Loan ID: {loan_id})"
-    ))
+            INSERT INTO stock_movements
+            (appliance_id, movement_type, quantity, reference_note, movement_date)
+            VALUES (%s, 'OUT', %s, %s, NOW())
+        """, (
+            loan['appliance_id'],
+            quantity,
+            f"Loan Approved (Loan ID: {loan_id})"
+        ))
 
-        # 5️⃣ Delete any existing payment schedule (prevents duplicates)
-        cur.execute("DELETE FROM payments WHERE loan_id=%s", (loan_id,))
+        # ---------------- 6. DELETE OLD PAYMENTS ----------------
+        cur.execute("""
+            DELETE FROM payments WHERE loan_id=%s
+        """, (loan_id,))
 
-        # 6️⃣ Generate payment schedule
+        # ---------------- 7. GENERATE SCHEDULE ----------------
         amount = float(loan['amount'])
         months = int(loan['months'])
+
+        if months <= 0:
+            months = 1  # safety fix
+
         monthly_payment = round(amount / months, 2)
         start_date = date.today()
 
@@ -1447,55 +1772,66 @@ def approve_loan(loan_id):
             due_date = start_date + relativedelta(months=i)
 
             cur.execute("""
-                INSERT INTO payments (loan_id, month_no, amount_due, due_date, status)
+                INSERT INTO payments 
+                (loan_id, month_no, amount_due, due_date, status)
                 VALUES (%s, %s, %s, %s, 'not_paid')
-            """, (loan['id'], i, monthly_payment, due_date))
+            """, (loan_id, i, monthly_payment, due_date))
 
-        # 7️⃣ Commit all changes
-        mysql.connection.commit()
+        conn.commit()
 
-        # 8️⃣ SEND EMAIL NOTIFICATION
+        # ---------------- 8. EMAIL NOTIFICATION ----------------
         yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
 
         subject = "Loan Application Approved 🎉"
+
         body = f"""
 Hello {loan['full_name']},
 
 Good news! 🎉
 
-Your loan application for:
+Your loan for:
 Appliance: {loan['appliance_name']}
 
 Has been APPROVED.
 
-Loan Amount: ₱{loan['amount']:.2f}
-Months to Pay: {loan['months']}
+Amount: ₱{loan['amount']:.2f}
+Months: {loan['months']}
 
-Your payment schedule has been generated and is available in your account dashboard.
+Your payment schedule is now available in your dashboard.
 
-Thank you for choosing Greater RJ Appliance and Trading Corporation.
+Thank you,
+Greater RJ Appliance and Trading Corporation
         """
 
-        yag.send(to=loan['email'], subject=subject, contents=body,
-                    headers={"From": "Greater RJ Appliance and Trading Corporation <{}>".format(EMAIL_USER)}
-                )
+        yag.send(
+            to=loan['email'],
+            subject=subject,
+            contents=body,
+            headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
+        )
 
         cur.close()
+        conn.close()
 
-        flash("Loan approved, stock updated, movement logged, payment schedule created, and email sent!", "success")
+        flash("Loan approved successfully, stock updated, schedule created, and email sent!", "success")
         return redirect(url_for("admin_loans"))
 
     except Exception as e:
         return f"Error approving loan: {str(e)}"
+
+import qrcode
+from io import BytesIO
+from flask import send_file
 
 
 
 @app.route("/deny_loan/<int:loan_id>", methods=["POST"])
 def deny_loan(loan_id):
     try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-        # Get loan + user info
+        # Get loan info
         cur.execute("""
             SELECT l.*, u.full_name, u.email, a.appliance_name
             FROM loans l
@@ -1503,49 +1839,54 @@ def deny_loan(loan_id):
             JOIN appliances a ON l.appliance_id = a.id
             WHERE l.id = %s
         """, (loan_id,))
+
         loan = cur.fetchone()
 
         if not loan:
+            cur.close()
+            conn.close()
             return "Loan not found", 404
 
         # Update status
-        cur.execute("UPDATE loans SET status = 'Denied' WHERE id = %s", (loan_id,))
-        mysql.connection.commit()
+        cur.execute("""
+            UPDATE loans SET status='Denied'
+            WHERE id=%s
+        """, (loan_id,))
 
-        # 📧 SEND EMAIL
+        conn.commit()
+
+        # EMAIL
         yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
 
         subject = "Loan Application Update"
+
         body = f"""
 Hello {loan['full_name']},
 
-We regret to inform you that your loan application for:
+We regret to inform you that your loan for:
 
 Appliance: {loan['appliance_name']}
 
 Has been DENIED.
 
-If you have questions, please contact our office.
-
 Thank you,
 Greater RJ Appliance and Trading Corporation
         """
 
-        yag.send(to=loan['email'], subject=subject, contents=body,
-                    headers={"From": "Greater RJ Appliance and Trading Corporation <{}>".format(EMAIL_USER)})
+        yag.send(
+            to=loan['email'],
+            subject=subject,
+            contents=body,
+            headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
+        )
 
         cur.close()
+        conn.close()
+
         return redirect(url_for("admin_loans"))
 
     except Exception as e:
         return f"Error denying loan: {str(e)}"
-
-
-
-from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import datetime
-import MySQLdb.cursors
-
 
 @app.route('/payments')
 def payments():
@@ -1553,7 +1894,8 @@ def payments():
         return redirect(url_for('login'))
 
     user_id = session['user_id']
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch loans
     cur.execute("""
@@ -1563,7 +1905,7 @@ def payments():
     loans = cur.fetchall()
 
     for loan in loans:
-        # Fetch payments per loan
+
         cur.execute("""
             SELECT *
             FROM payments
@@ -1572,36 +1914,44 @@ def payments():
         """, (loan['id'],))
         loan['payments'] = cur.fetchall()
 
-        # Calculate total paid from DB values
         cur.execute("""
             SELECT SUM(paid_amount) as total_paid
             FROM payments
             WHERE loan_id=%s
         """, (loan['id'],))
+
         total = cur.fetchone()
         loan['paid_amount_sum'] = total['total_paid'] or 0
 
         loan['balance'] = float(loan['amount']) - float(loan['paid_amount_sum'])
 
     cur.close()
+    conn.close()
 
     return render_template("payments.html", loans=loans)
+    
 # Update a specific payment from admin panel
 @app.route('/update_partial_payments/<int:user_id>', methods=['POST'])
 def update_partial_payments(user_id):
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     payment_id = request.form.get('update_payment')
+
     if not payment_id:
+        cur.close()
+        conn.close()
         flash("No payment selected.", "danger")
         return redirect(url_for('view_customer_payments', user_id=user_id))
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # ===== GET CURRENT PAYMENT =====
+    # ===== GET PAYMENT =====
     cur.execute("SELECT * FROM payments WHERE id=%s", (payment_id,))
     payment = cur.fetchone()
 
     if not payment:
         cur.close()
+        conn.close()
         flash("Payment not found.", "danger")
         return redirect(url_for('view_customer_payments', user_id=user_id))
 
@@ -1610,26 +1960,27 @@ def update_partial_payments(user_id):
         paid_amount = float(request.form.get(f"paid_{payment_id}", 0))
     except:
         cur.close()
+        conn.close()
         flash("Invalid payment amount.", "danger")
         return redirect(url_for('view_customer_payments', user_id=user_id))
 
-    # ===== IMPORTANT: USE UPDATED AMOUNT_DUE =====
     current_due = float(payment['amount_due'])
 
-    # ===== COMPUTE ONLY THIS MONTH DIFFERENCE =====
     arrears = max(current_due - paid_amount, 0)
     overpayment = max(paid_amount - current_due, 0)
-    adjustment = arrears - overpayment  # 🔥 key variable
+    adjustment = arrears - overpayment
 
-    # ===== DETERMINE STATUS =====
+    # ===== STATUS =====
     if paid_amount >= current_due:
         status = 'paid'
         paid_at = datetime.now()
         payment_type = "Paid in Full ✅"
+
     elif paid_amount > 0:
         status = 'partial'
         paid_at = None
         payment_type = "Partial Payment ⚠️"
+
     else:
         status = 'not_paid'
         paid_at = None
@@ -1638,13 +1989,16 @@ def update_partial_payments(user_id):
     # ===== UPDATE CURRENT PAYMENT =====
     cur.execute("""
         UPDATE payments
-        SET paid_amount=%s, status=%s, arrears=%s, paid_at=%s
+        SET paid_amount=%s,
+            status=%s,
+            arrears=%s,
+            paid_at=%s
         WHERE id=%s
     """, (paid_amount, status, arrears, paid_at, payment_id))
 
-    # ===== GET NEXT MONTH =====
+    # ===== NEXT PAYMENT =====
     cur.execute("""
-        SELECT * FROM payments 
+        SELECT * FROM payments
         WHERE loan_id=%s AND month_no=%s
     """, (payment['loan_id'], payment['month_no'] + 1))
 
@@ -1652,28 +2006,24 @@ def update_partial_payments(user_id):
     next_due_msg = ""
 
     if next_payment:
-        # 🔥 ALWAYS RESET TO ORIGINAL BASE
-        base_due = float(next_payment['original_amount_due'])
 
-        # 🔥 APPLY ONLY THIS MONTH’S ADJUSTMENT
+        base_due = float(next_payment.get('original_amount_due') or next_payment['amount_due'])
+
         next_due = base_due + adjustment
         next_due = max(next_due, 0)
 
         cur.execute("""
-            UPDATE payments 
+            UPDATE payments
             SET amount_due=%s
             WHERE id=%s
         """, (next_due, next_payment['id']))
 
         next_due_msg = f"\nNext Month's Adjusted Due: ₱{next_due:.2f}"
 
-    mysql.connection.commit()
-    cur.close()
+    conn.commit()
 
-    # ===== EMAIL + RECEIPT (UNCHANGED) =====
+    # ===== EMAIL SECTION =====
     try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
         cur.execute("""
             SELECT u.full_name, u.email, a.appliance_name
             FROM loans l
@@ -1683,9 +2033,9 @@ def update_partial_payments(user_id):
         """, (payment['loan_id'],))
 
         info = cur.fetchone()
-        cur.close()
 
         if info:
+
             pdf_buffer = io.BytesIO()
             c = canvas.Canvas(pdf_buffer, pagesize=(400, 420))
 
@@ -1693,43 +2043,20 @@ def update_partial_payments(user_id):
             today = datetime.now().strftime("%B %d, %Y")
             due_date = payment['due_date'].strftime("%B %d, %Y")
 
-            c.rect(10, 10, 380, 400, stroke=1, fill=0)
+            c.rect(10, 10, 380, 400)
 
             c.setFont("Helvetica-Bold", 12)
             c.drawCentredString(200, 380, "GREATER RJ Appliance & Trading Corp")
 
-            c.setFont("Helvetica-Bold", 11)
-            c.drawCentredString(200, 365, "OFFICIAL RECEIPT")
-
-            c.line(20, 355, 380, 355)
-
             c.setFont("Helvetica", 10)
             c.drawString(20, 335, f"Receipt No : {receipt_no}")
             c.drawString(20, 320, f"Date       : {today}")
-
-            c.drawString(20, 295, f"Customer   : {info['full_name'].upper()}")
-            c.drawString(20, 280, f"Appliance  : {info['appliance_name'].upper()}")
-
+            c.drawString(20, 295, f"Customer   : {info['full_name']}")
+            c.drawString(20, 280, f"Appliance  : {info['appliance_name']}")
             c.drawString(20, 255, f"Due Date   : {due_date}")
-
-            c.line(20, 245, 380, 245)
 
             c.drawString(20, 225, f"Amount Due : ₱{current_due:,.2f}")
             c.drawString(20, 210, f"Amount Paid: ₱{paid_amount:,.2f}")
-
-            if status == "paid":
-                receipt_status = "FULLY PAID"
-            elif paid_amount > 0:
-                receipt_status = "PARTIAL PAYMENT"
-            else:
-                receipt_status = "NOT PAID"
-
-            c.drawString(20, 190, f"Status     : {receipt_status}")
-
-            c.line(20, 180, 380, 180)
-
-            c.setFont("Helvetica-Oblique", 9)
-            c.drawString(20, 160, "Thank you for your payment!")
 
             c.showPage()
             c.save()
@@ -1738,11 +2065,9 @@ def update_partial_payments(user_id):
             body = f"""
 Hello {info['full_name']},
 
-Your payment of ₱{paid_amount:.2f} for "{info['appliance_name']}" has been received.
-Payment Status: {payment_type}
+Your payment of ₱{paid_amount:.2f} has been updated.
+Status: {payment_type}
 {next_due_msg}
-
-Attached is your official receipt.
 
 Thank you,
 Greater RJ Appliance and Trading Corporation
@@ -1752,7 +2077,7 @@ Greater RJ Appliance and Trading Corporation
 
             yag.send(
                 to=info['email'],
-                subject=f"Payment Update – {info['appliance_name']}",
+                subject="Payment Update",
                 contents=body,
                 attachments=[pdf_buffer]
             )
@@ -1760,47 +2085,27 @@ Greater RJ Appliance and Trading Corporation
     except Exception as e:
         print("Email error:", e)
 
-    flash("Payment updated successfully and next month adjusted correctly ✅.", "success")
-    return redirect(url_for('view_customer_payments', user_id=user_id))
-
-
-
-from datetime import datetime, timedelta
-
-def send_due_payment_reminders():
-    conn = get_db_connection()
-    cur = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Get loans with payments due in 7 days
-    upcoming_date = (datetime.now() + timedelta(days=7)).date()
-    cur.execute("""
-        SELECT l.user_id, l.loan_id, l.due_date
-        FROM loans l
-        WHERE l.due_date = %s
-    """, (upcoming_date,))
-    
-    loans = cur.fetchall()
-    for loan in loans:
-        message = f"Reminder: Your payment for Loan #{loan['loan_id']} is due on {loan['due_date']}."
-        create_notification(loan['user_id'], message)
-    
     cur.close()
     conn.close()
+
+    flash("Payment updated successfully ✅", "success")
+    return redirect(url_for('view_customer_payments', user_id=user_id))
+
 
 
 
 @app.route("/customer/history")
 def customer_history():
+
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # =========================
-    # GET LOANS
-    # =========================
+    # LOANS
     cur.execute("""
         SELECT l.*, a.appliance_name
         FROM loans l
@@ -1810,41 +2115,36 @@ def customer_history():
     """, (user_id,))
     loans = cur.fetchall()
 
-    # =========================
-    # GET PAYMENTS PER LOAN
-    # =========================
     for loan in loans:
+
         cur.execute("""
             SELECT month_no, amount_due, due_date, status
             FROM payments
             WHERE loan_id = %s
             ORDER BY month_no ASC
         """, (loan["id"],))
-        
+
         payments = cur.fetchall()
 
-        # ✅ Convert due_date to Long Date Format
         for p in payments:
             if p["due_date"]:
                 p["due_date"] = p["due_date"].strftime("%B %d, %Y")
 
         loan["payments"] = payments
 
-        # =========================
-        # CALCULATE PAID & BALANCE
-        # =========================
-        paid = sum(
-            float(p["amount_due"])
-            for p in payments
-            if p["status"] == "paid"
-        )
+        # FIXED: sum PAID AMOUNT (not amount_due)
+        cur.execute("""
+            SELECT SUM(paid_amount) as total_paid
+            FROM payments
+            WHERE loan_id=%s
+        """, (loan["id"],))
 
-        loan["paid"] = paid
-        loan["balance"] = float(loan["amount"]) - paid
+        paid = cur.fetchone()["total_paid"] or 0
 
-    # =========================
-    # GET ORDERS
-    # =========================
+        loan["paid"] = float(paid)
+        loan["balance"] = float(loan["amount"]) - float(paid)
+
+    # ORDERS
     cur.execute("""
         SELECT * FROM orders
         WHERE user_id = %s
@@ -1857,28 +2157,33 @@ def customer_history():
             SELECT appliance_name, price, quantity
             FROM order_items
             WHERE order_id = %s
-        """, (order["order_id"],))
+        """, (order["id"],))   # FIXED: was order_id
         order["items"] = cur.fetchall()
 
     cur.close()
+    conn.close()
 
-    return render_template(
-        "customer_history.html",
-        loans=loans,
-        orders=orders
-    )
+    return render_template("customer_history.html", loans=loans, orders=orders)
 
 def get_appliances():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     cur.execute("""
         SELECT *
         FROM appliances
         WHERE status = 'Available' AND stock > 0
         ORDER BY created_at DESC
     """)
+
     appliances = cur.fetchall()
+
     cur.close()
+    conn.close()
+
     return appliances
+
 
 @app.route("/appliances")
 def appliances_iframe():
@@ -1889,133 +2194,27 @@ def appliances_iframe():
 def inject_cart_count():
     if "user_id" in session:
         user_id = session["user_id"]
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
         cur.execute("""
             SELECT SUM(quantity) AS total_qty 
             FROM cart
             WHERE user_id = %s
         """, (user_id,))
+
         result = cur.fetchone()
         cur.close()
+        conn.close()
 
-        # If user has no cart items, show 0
         count = result["total_qty"] if result and result["total_qty"] else 0
     else:
         count = 0
 
     return dict(cart_count=count)
 
-@app.route("/cart/count")
-def cart_count_route():
-    cart = session.get("cart", {})
-    return {"count": sum(cart.values())}
-
-@app.route("/customer/apply-loan")
-def apply_loan_page():
-    if "user_id" not in session:
-        flash("Please log in first", "danger")
-        return redirect(url_for("login"))
-
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM appliances WHERE status='Available' AND stock > 0")
-    appliances = cur.fetchall()
-    cur.close()
-
-    return render_template("apply_loan.html", appliances=appliances)
 
 
-@app.route("/orders")
-def customer_orders():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    user_id = session["user_id"]  # ✅ FIX
-
-    conn = get_db_connection()
-    cur = conn.cursor(MySQLdb.cursors.DictCursor)
-
-    # Get orders of this customer
-    cur.execute("""
-        SELECT order_id, total_amount, status, created_at
-        FROM orders
-        WHERE user_id = %s
-        ORDER BY created_at DESC
-    """, (user_id,))
-    orders = cur.fetchall()
-
-    # Attach items per order
-    for order in orders:
-        cur.execute("""
-            SELECT appliance_name, price, quantity
-            FROM order_items
-            WHERE order_id = %s
-        """, (order["order_id"],))
-        order["items"] = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return render_template("orders.html", orders=orders)
-
-
-
-@app.route("/payments")
-def customer_payments():
-    if "user_id" not in session:
-        flash("Please log in first", "danger")
-        return redirect(url_for("login"))
-
-    user_id = session["user_id"]
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # Get loans for the user
-    cur.execute("""
-        SELECT l.*, a.appliance_name
-        FROM loans l
-        JOIN appliances a ON l.appliance_id = a.id
-        WHERE l.user_id = %s
-        ORDER BY l.created_at DESC
-    """, (user_id,))
-    loans = cur.fetchall()
-
-    # Get payments for each loan
-    for loan in loans:
-        cur.execute("""
-            SELECT id, month_no, amount_due, due_date, status, payment_proof
-            FROM payments
-            WHERE loan_id = %s
-            ORDER BY month_no ASC
-        """, (loan["id"],))
-        loan["payments"] = cur.fetchall()
-
-        # Calculate paid & balance
-        paid = sum(
-            p["amount_due"] for p in loan["payments"] 
-            if p["status"] == "paid"
-        )
-        loan["paid"] = paid
-        loan["balance"] = loan["amount"] - paid
-
-    cur.close()
-    return render_template("payments.html", loans=loans)
-
-@app.route("/admin/stock_movements/<int:appliance_id>")
-def appliance_stock_movements(appliance_id):
-
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    cur.execute("""
-        SELECT sm.*, a.appliance_name
-        FROM stock_movements sm
-        JOIN appliances a ON sm.appliance_id = a.id
-        WHERE sm.appliance_id = %s
-        ORDER BY sm.movement_date DESC
-    """, (appliance_id,))
-
-    movements = cur.fetchall()
-    cur.close()
-
-    return render_template("stock_movements.html", movements=movements)
 
 @app.route("/admin/edit_appliance/<int:appliance_id>", methods=["GET", "POST"])
 def edit_appliance(appliance_id):
@@ -2024,14 +2223,16 @@ def edit_appliance(appliance_id):
         flash("Please login first", "danger")
         return redirect(url_for("login"))
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch appliance
-    cur.execute("SELECT * FROM appliances WHERE id = %s", (appliance_id,))
+    cur.execute("SELECT * FROM appliances WHERE id=%s", (appliance_id,))
     appliance = cur.fetchone()
 
     if not appliance:
-        flash("Appliance not found", "error")
+        cur.close()
+        conn.close()
+        flash("Appliance not found", "danger")
         return redirect(url_for("admin_appliances"))
 
     if request.method == "POST":
@@ -2041,7 +2242,7 @@ def edit_appliance(appliance_id):
         new_stock = int(request.form["stock"])
         image = request.files.get("image")
 
-        image_path_db = appliance["image"]  # keep old image
+        image_path_db = appliance["image"]
 
         if image and image.filename != "":
             filename = secure_filename(image.filename)
@@ -2053,7 +2254,6 @@ def edit_appliance(appliance_id):
         old_stock = appliance["stock"]
         difference = new_stock - old_stock
 
-        # Update appliance
         cur.execute("""
             UPDATE appliances
             SET appliance_name=%s,
@@ -2064,7 +2264,6 @@ def edit_appliance(appliance_id):
             WHERE id=%s
         """, (name, category, price, new_stock, image_path_db, appliance_id))
 
-        # 🔥 RECORD STOCK MOVEMENT
         if difference != 0:
             movement_type = "stock_in" if difference > 0 else "stock_out"
 
@@ -2079,59 +2278,16 @@ def edit_appliance(appliance_id):
                 "Manual stock adjustment (Admin Edit)"
             ))
 
-        mysql.connection.commit()
+        conn.commit()
         cur.close()
+        conn.close()
 
         flash("Appliance updated successfully", "success")
         return redirect(url_for("admin_appliances"))
 
     cur.close()
+    conn.close()
     return render_template("edit_appliance.html", appliance=appliance)
-
-
-@app.route("/admin/inventory-report")
-def inventory_report():
-    conn = get_db_connection()
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Get selected category from GET parameters
-    selected_category = request.args.get("category", "")
-    
-    # Get all unique categories for the dropdown
-    cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category")
-    categories = cur.fetchall()  # list of dicts: [{'category': 'Refrigerator'}, ...]
-    
-    # Get appliances filtered by category if selected
-    if selected_category:
-        cur.execute("SELECT * FROM appliances WHERE category = %s ORDER BY appliance_name", (selected_category,))
-    else:
-        cur.execute("SELECT * FROM appliances ORDER BY appliance_name")
-    appliances = cur.fetchall()
-    
-    # Get stock movements for each appliance
-    for a in appliances:
-        cur.execute("""
-            SELECT movement_date, movement_type, quantity, reference_note
-            FROM stock_movements
-            WHERE appliance_id = %s
-            ORDER BY movement_date DESC
-        """, (a['id'],))
-        a['movements'] = cur.fetchall()
-    
-    cur.close()
-    
-    return render_template(
-        'inventory_report.html',
-        appliances=appliances,
-        categories=categories,
-        selected_category=selected_category,
-        generated_at=datetime.now()
-    )
-
-
-    
-
-
 
 
 
@@ -2143,11 +2299,11 @@ def report_loan_decisions():
 
     from_date = request.args.get("from_date")
     to_date = request.args.get("to_date")
-    status = request.args.get("status")  # NEW: filter by status
+    status = request.args.get("status")
 
-    # Base query
     query = """
-        SELECT l.id, l.user_id, u.full_name, a.appliance_name, l.amount, l.months, l.status, l.applied_on
+        SELECT l.id, l.user_id, u.full_name, a.appliance_name,
+               l.amount, l.months, l.status, l.applied_on
         FROM loans l
         JOIN users u ON l.user_id = u.id
         JOIN appliances a ON l.appliance_id = a.id
@@ -2164,38 +2320,41 @@ def report_loan_decisions():
         params.append(to_date)
 
     if status in ["Approved", "Pending", "Denied"]:
-        query += " AND l.status = %s"
+        query += " AND l.status=%s"
         params.append(status)
 
     query += " ORDER BY l.applied_on DESC"
 
     cur.execute(query, params)
-    loans = cur.fetchall()  # renamed to plural for clarity
+    loans = cur.fetchall()
 
-    # Calculate summary totals
-    approved_count = sum(1 for l in loans if l["status"].strip().lower() == "approved")
-    denied_count   = sum(1 for l in loans if l["status"].strip().lower() == "denied")
-    pending_count  = sum(1 for l in loans if l['status'].strip().lower() == "pending")
+    approved_count = sum(1 for l in loans if l["status"].lower() == "approved")
+    denied_count = sum(1 for l in loans if l["status"].lower() == "denied")
+    pending_count = sum(1 for l in loans if l["status"].lower() == "pending")
 
     cur.close()
     conn.close()
 
     return render_template(
         "admin_reports_loan_decisions.html",
-        loans=loans,  # send filtered loans
+        loans=loans,
         from_date=from_date,
         to_date=to_date,
-        selected_status=status,  # for keeping dropdown selected
+        selected_status=status,
         approved_count=approved_count,
         denied_count=denied_count,
         pending_count=pending_count
     )
+    
+
 from datetime import datetime
 import MySQLdb.cursors
 
 @app.route("/admin/reports/customers")
 def report_customers():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     cur.execute("""
         SELECT id, full_name, email, contact_number, address, status, created_at
         FROM users
@@ -2204,6 +2363,7 @@ def report_customers():
     """)
     customers = cur.fetchall()
     cur.close()
+    conn.close()
 
     generated_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
@@ -2216,33 +2376,35 @@ def report_customers():
 
 @app.route("/admin/order_receipt/<int:order_id>")
 def order_receipt(order_id):
-    cur = mysql.connection.cursor()
-    
-    # Fetch order details
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
     cur.execute("""
-        SELECT o.user_id, o.user_id, o.total_amount, o.status, o.created_at, 
+        SELECT o.order_id, o.total_amount, o.status, o.created_at,
                u.full_name, u.email
         FROM orders o
         JOIN users u ON o.user_id = u.id
         WHERE o.order_id = %s
     """, (order_id,))
     order = cur.fetchone()
-    
-    if not order or order['status'] != 'Approved':
+
+    if not order or order["status"] != "Approved":
         flash("Order is not approved yet!", "error")
-        return redirect(url_for('admin_orders'))
-    
-    # Fetch order items
+        return redirect(url_for("admin_orders"))
+
     cur.execute("""
-        SELECT appliance_name, price, quantity, (price * quantity) as subtotal
+        SELECT appliance_name, price, quantity,
+               (price * quantity) AS subtotal
         FROM order_items
         WHERE order_id = %s
     """, (order_id,))
     items = cur.fetchall()
-    
+
     cur.close()
-    
+    conn.close()
+
     return render_template("order_receipt.html", order=order, items=items)
+
 
 @app.route("/admin/payment_transactions")
 def payment_transactions():
@@ -2271,13 +2433,15 @@ def payment_transactions():
         LEFT JOIN payments p ON l.id = p.loan_id
     """
 
+    params = []
+
     if customer:
         query += " WHERE u.full_name LIKE %s"
-        cur.execute(query + " ORDER BY u.full_name, p.due_date",
-                    (f"%{customer}%",))
-    else:
-        cur.execute(query + " ORDER BY u.full_name, p.due_date")
+        params.append(f"%{customer}%")
 
+    query += " ORDER BY u.full_name, p.due_date"
+
+    cur.execute(query, params)
     rows = cur.fetchall()
 
     cur.close()
@@ -2305,7 +2469,6 @@ def payment_transactions():
             amount_due = float(row["amount_due"] or 0)
             paid_amount = float(row["paid_amount"] or 0)
 
-            # 🔴 ARREARS CALCULATION
             arrears = round(amount_due - paid_amount, 2)
 
             loans_dict[loan_id]["payments"].append({
@@ -2320,7 +2483,6 @@ def payment_transactions():
 
             loans_dict[loan_id]["total_paid"] += paid_amount
 
-    # balance
     for loan in loans_dict.values():
         loan["balance"] = loan["amount"] - loan["total_paid"]
 
@@ -2333,6 +2495,246 @@ def payment_transactions():
 
 
 
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
+from datetime import datetime, date, timedelta
+from collections import defaultdict
+import MySQLdb.cursors
+import os
+import io
+import base64
+import cv2
+import numpy as np
+import yagmail
+from functools import wraps
+
+# =========================
+# CONTEXT PROCESSOR
+# =========================
+@app.context_processor
+def inject_cart_count():
+    if "user_id" in session:
+        user_id = session["user_id"]
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        cur.execute("""
+            SELECT SUM(quantity) AS total_qty 
+            FROM cart
+            WHERE user_id = %s
+        """, (user_id,))
+
+        result = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        count = result["total_qty"] if result and result["total_qty"] else 0
+    else:
+        count = 0
+
+    return dict(cart_count=count)
+
+# =========================
+# CART COUNT API
+# =========================
+@app.route("/cart/count")
+def cart_count_route():
+    cart = session.get("cart", {})
+    return {"count": sum(cart.values())}
+
+# =========================
+# APPLY LOAN PAGE
+# =========================
+@app.route("/customer/apply-loan")
+def apply_loan_page():
+    if "user_id" not in session:
+        flash("Please log in first", "danger")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT * 
+        FROM appliances 
+        WHERE status = 'Available' AND stock > 0
+    """)
+    appliances = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template("apply_loan.html", appliances=appliances)
+
+# =========================
+# CUSTOMER ORDERS
+# =========================
+@app.route("/orders")
+def customer_orders():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT order_id, total_amount, status, created_at
+        FROM orders
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+    """, (user_id,))
+    orders = cur.fetchall()
+
+    for order in orders:
+        cur.execute("""
+            SELECT appliance_name, price, quantity
+            FROM order_items
+            WHERE order_id = %s
+        """, (order["order_id"],))
+        order["items"] = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template("orders.html", orders=orders)
+
+# =========================
+# CUSTOMER PAYMENTS
+# =========================
+@app.route("/payments")
+def customer_payments():
+    if "user_id" not in session:
+        flash("Please log in first", "danger")
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT l.*, a.appliance_name
+        FROM loans l
+        JOIN appliances a ON l.appliance_id = a.id
+        WHERE l.user_id = %s
+        ORDER BY l.created_at DESC
+    """, (user_id,))
+
+    loans = cur.fetchall()
+
+    for loan in loans:
+        cur.execute("""
+            SELECT id, month_no, amount_due, due_date, status, payment_proof
+            FROM payments
+            WHERE loan_id = %s
+            ORDER BY month_no ASC
+        """, (loan["id"],))
+
+        loan["payments"] = cur.fetchall()
+
+        paid = sum(
+            p["amount_due"]
+            for p in loan["payments"]
+            if p["status"] == "paid"
+        )
+
+        loan["paid"] = paid
+        loan["balance"] = loan["amount"] - paid
+
+    cur.close()
+    conn.close()
+
+    return render_template("payments.html", loans=loans)
+
+# =========================
+# STOCK MOVEMENTS
+# =========================
+# =========================
+# STOCK MOVEMENTS
+# =========================
+@app.route("/admin/stock_movements/<int:appliance_id>")
+def appliance_stock_movements(appliance_id):
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT sm.*, a.appliance_name
+        FROM stock_movements sm
+        JOIN appliances a ON sm.appliance_id = a.id
+        WHERE sm.appliance_id = %s
+        ORDER BY sm.movement_date DESC
+    """, (appliance_id,))
+
+    movements = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template("stock_movements.html", movements=movements)
+
+
+# =========================
+# INVENTORY REPORT
+# =========================
+@app.route("/admin/inventory-report")
+def inventory_report():
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    selected_category = request.args.get("category", "")
+    selected_appliance = request.args.get("appliance_name", "")
+
+    cur.execute("""
+        SELECT DISTINCT category 
+        FROM appliances 
+        ORDER BY category
+    """)
+    categories = cur.fetchall()
+
+    base_sql = "SELECT * FROM appliances WHERE 1=1"
+    params = []
+
+    if selected_category:
+        base_sql += " AND category = %s"
+        params.append(selected_category)
+
+    if selected_appliance:
+        base_sql += " AND appliance_name = %s"
+        params.append(selected_appliance)
+
+    base_sql += " ORDER BY appliance_name"
+
+    cur.execute(base_sql, params)
+    appliances = cur.fetchall()
+
+    for a in appliances:
+        cur.execute("""
+            SELECT movement_date, movement_type, quantity, reference_note
+            FROM stock_movements
+            WHERE appliance_id = %s
+            ORDER BY movement_date DESC
+        """, (a["id"],))
+        a["movements"] = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "inventory_report.html",
+        appliances=appliances,
+        categories=categories,
+        selected_category=selected_category,
+        selected_appliance=selected_appliance,
+        generated_at=datetime.now()
+    )
+# =========================
+# MONTHLY SALES REPORT
+# =========================
 from collections import defaultdict
 from datetime import datetime
 
@@ -2341,90 +2743,116 @@ def admin_reports_monthly_sales():
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Get filter values
-    month_str = request.args.get("month", datetime.now().strftime("%Y-%m"))
-    category_filter = request.args.get("category", "")
-
     try:
-        year, month = map(int, month_str.split("-"))
-    except:
-        year, month = datetime.now().year, datetime.now().month
+        # =========================
+        # FILTERS
+        # =========================
+        month_str = request.args.get("month", datetime.now().strftime("%Y-%m"))
+        category_filter = request.args.get("category", "")
 
-    # Monthly appliance report: only approved loans
-    query = """
-        SELECT 
-            a.appliance_name,
-            a.category,
-            SUM(l.amount) AS total_loan,
-            SUM(COALESCE(p.paid_amount,0)) AS total_collected,
-            COUNT(DISTINCT l.id) AS stocks_released
-        FROM loans l
-        JOIN appliances a ON l.appliance_id = a.id
-        LEFT JOIN payments p ON p.loan_id = l.id
-        WHERE l.status = 'Approved'
-          AND (MONTH(p.due_date) = %s AND YEAR(p.due_date) = %s OR p.id IS NULL)
-    """
-    params = [month, year]
+        try:
+            year, month = map(int, month_str.split("-"))
+        except:
+            year, month = datetime.now().year, datetime.now().month
 
-    # Apply category filter if selected
-    if category_filter:
-        query += " AND a.category = %s"
-        params.append(category_filter)
-
-    query += " GROUP BY a.id ORDER BY stocks_released DESC, a.appliance_name ASC"
-    cur.execute(query, tuple(params))
-    reports = cur.fetchall()
-
-    # Compute grand totals
-    grand_total_collected = sum(r['total_collected'] for r in reports)
-    grand_total_loan = sum(r['total_loan'] for r in reports)
-    grand_total_stocks = sum(r['stocks_released'] for r in reports)
-
-    # Categories for filter dropdown
-    cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category ASC")
-    categories = cur.fetchall()
-
-    # Yearly collected data per month (only approved loans)
-    yearly_data = defaultdict(float)
-    for m in range(1, 13):
-        yearly_query = """
-            SELECT SUM(COALESCE(p.paid_amount,0)) AS total_collected
+        # =========================
+        # MAIN REPORT QUERY
+        # =========================
+        query = """
+            SELECT 
+                a.appliance_name,
+                a.category,
+                SUM(l.amount) AS total_loan,
+                SUM(COALESCE(p.paid_amount,0)) AS total_collected,
+                COUNT(DISTINCT l.id) AS stocks_released
             FROM loans l
             JOIN appliances a ON l.appliance_id = a.id
             LEFT JOIN payments p ON p.loan_id = l.id
             WHERE l.status = 'Approved'
-              AND MONTH(p.due_date)=%s AND YEAR(p.due_date)=%s
+              AND (
+                    (MONTH(p.due_date) = %s AND YEAR(p.due_date) = %s)
+                    OR p.id IS NULL
+                  )
         """
-        params_yearly = [m, year]
+
+        params = [month, year]
+
         if category_filter:
-            yearly_query += " AND a.category=%s"
-            params_yearly.append(category_filter)
+            query += " AND a.category = %s"
+            params.append(category_filter)
 
-        cur.execute(yearly_query, tuple(params_yearly))
-        result = cur.fetchone()
-        yearly_data[m] = result['total_collected'] if result['total_collected'] else 0
+        query += " GROUP BY a.id ORDER BY stocks_released DESC, a.appliance_name ASC"
 
-    cur.close()
-    conn.close()
+        cur.execute(query, tuple(params))
+        reports = cur.fetchall()
 
-    return render_template(
-        "admin_reports_monthly_sales.html",
-        reports=reports,
-        selected_month=month_str,
-        selected_category=category_filter,
-        categories=categories,
-        grand_total_collected=grand_total_collected,
-        grand_total_loan=grand_total_loan,
-        grand_total_stocks=grand_total_stocks,
-        yearly_data=yearly_data
-    )
+        # =========================
+        # SAFE TOTALS (FIXED ERROR SOURCE)
+        # =========================
+        grand_total_collected = sum(r["total_collected"] or 0 for r in reports)
+        grand_total_loan = sum(r["total_loan"] or 0 for r in reports)
+        grand_total_stocks = sum(r["stocks_released"] or 0 for r in reports)
 
+        # =========================
+        # CATEGORIES DROPDOWN
+        # =========================
+        cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category ASC")
+        categories = cur.fetchall()
+
+        # =========================
+        # YEARLY DATA (CHART)
+        # =========================
+        yearly_data = defaultdict(float)
+
+        for m in range(1, 13):
+            yearly_query = """
+                SELECT SUM(COALESCE(p.paid_amount,0)) AS total_collected
+                FROM loans l
+                JOIN appliances a ON l.appliance_id = a.id
+                LEFT JOIN payments p ON p.loan_id = l.id
+                WHERE l.status = 'Approved'
+                  AND MONTH(p.due_date) = %s
+                  AND YEAR(p.due_date) = %s
+            """
+
+            params_yearly = [m, year]
+
+            if category_filter:
+                yearly_query += " AND a.category = %s"
+                params_yearly.append(category_filter)
+
+            cur.execute(yearly_query, tuple(params_yearly))
+            result = cur.fetchone()
+
+            yearly_data[m] = float(result["total_collected"] or 0)
+
+        # =========================
+        # RETURN TEMPLATE
+        # =========================
+        return render_template(
+            "admin_reports_monthly_sales.html",
+            reports=reports,
+            selected_month=month_str,
+            selected_category=category_filter,
+            categories=categories,
+            grand_total_collected=grand_total_collected,
+            grand_total_loan=grand_total_loan,
+            grand_total_stocks=grand_total_stocks,
+            yearly_data=yearly_data
+        )
+
+    finally:
+        cur.close()
+        conn.close()
+
+# =========================
+# ORDER RECEIPTS REPORT
+# =========================
 @app.route("/reports/order_receipts")
 def order_receipts_report():
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch all approved orders with customer info
     cur.execute("""
         SELECT o.order_id, o.user_id, o.total_amount, o.created_at,
                u.full_name, u.email
@@ -2440,9 +2868,17 @@ def order_receipts_report():
 
     return render_template("admin_order_receipts.html", orders=orders)
 
-# --- Reminder functions ---
+from datetime import datetime, timedelta
+import MySQLdb.cursors
+from flask import request, render_template, redirect, url_for, session, flash
+from werkzeug.security import check_password_hash, generate_password_hash
+
+# =========================
+# REMINDER FUNCTION
+# =========================
 def get_upcoming_due_payments(user_id=None):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     target_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
@@ -2464,22 +2900,29 @@ def get_upcoming_due_payments(user_id=None):
     """
 
     params = [target_date]
+
     if user_id:
         query += " AND u.id = %s"
         params.append(user_id)
 
     cur.execute(query, params)
     results = cur.fetchall()
+
     cur.close()
+    conn.close()
+
     return results
 
 
-
+# =========================
+# ACCOUNT SECURITY
+# =========================
 @app.route("/account/security", methods=["GET", "POST"])
 def account_security():
-    user_id = session.get('user_id')  # Assuming you store logged-in user ID in session
+    user_id = session.get("user_id")
+
     if not user_id:
-        return redirect(url_for('login'))
+        return redirect(url_for("login"))
 
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
@@ -2489,23 +2932,34 @@ def account_security():
         new_password = request.form.get("new_password")
         confirm_password = request.form.get("confirm_password")
 
-        # Fetch current password hash
         cur.execute("SELECT password FROM users WHERE id = %s", (user_id,))
         user = cur.fetchone()
 
-        if not check_password_hash(user['password'], current_password):
+        if not user:
+            flash("User not found.", "error")
+
+        elif not check_password_hash(user["password"], current_password):
             flash("Current password is incorrect.", "error")
+
         elif new_password != confirm_password:
             flash("New passwords do not match.", "error")
+
         else:
             hashed = generate_password_hash(new_password)
-            cur.execute("UPDATE users SET password = %s WHERE id = %s", (hashed, user_id))
+
+            cur.execute("""
+                UPDATE users 
+                SET password = %s 
+                WHERE id = %s
+            """, (hashed, user_id))
+
             conn.commit()
             flash("Password successfully updated!", "success")
-            return redirect(url_for('account_security'))
+            return redirect(url_for("account_security"))
 
     cur.close()
     conn.close()
+
     return render_template("account_security.html")
 
 @app.route("/account/emails")
@@ -2580,7 +3034,8 @@ def account_profile():
 
 @app.route('/admin/loan/<int:loan_id>')
 def admin_loan_details(loan_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the loan along with user and appliance info
     cur.execute("""
@@ -2593,13 +3048,14 @@ def admin_loan_details(loan_id):
     """, (loan_id,))
     
     loan = cur.fetchone()
+
     cur.close()
+    conn.close()
 
     if not loan:
         flash("Loan not found", "danger")
         return redirect(url_for('admin_loans'))
 
-    # Render the details page
     return render_template("admin_loan_details.html", loan=loan)
 
 from werkzeug.utils import secure_filename
@@ -2616,7 +3072,8 @@ def admin_notifications_json():
     if admin_id != 42:
         return jsonify([])
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     cur.execute("""
         SELECT 
@@ -2632,7 +3089,9 @@ def admin_notifications_json():
     """, (admin_id,))
 
     notifications = cur.fetchall()
+
     cur.close()
+    conn.close()
 
     return jsonify(notifications)
 
@@ -2643,17 +3102,20 @@ def mark_all_notifications_read():
 
     admin_id = session['user_id']
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     cur.execute("""
         UPDATE admin_notifications
         SET is_read = 1
         WHERE user_id = %s AND is_read = 0
     """, (admin_id,))
-    mysql.connection.commit()
+
+    conn.commit()
     cur.close()
+    conn.close()
 
     return jsonify({"success": True})
-
 
 @app.route('/admin/notifications/delete/<int:notification_id>')
 def delete_notification(notification_id):
@@ -2661,20 +3123,25 @@ def delete_notification(notification_id):
     if 'user_id' not in session or session['user_id'] != 42:
         return redirect(url_for('login'))
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
 
     cur.execute("""
         DELETE FROM admin_notifications
         WHERE id = %s AND user_id = %s
     """, (notification_id, 42))
 
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
+    return redirect(url_for('admin_dashboard'))
     return '', 204
+
 @app.route("/upload_payment/<int:payment_id>", methods=["POST"])
 def upload_payment(payment_id):
-    # Check if a file was uploaded
+
+    # Check if file exists
     if 'payment_screenshot' not in request.files:
         flash("No file uploaded.", "danger")
         return redirect(request.referrer)
@@ -2685,27 +3152,28 @@ def upload_payment(payment_id):
         flash("No selected file.", "danger")
         return redirect(request.referrer)
 
-    # Save the uploaded file
+    # Save file
     filename = secure_filename(file.filename)
     filepath = os.path.join('static/uploads', filename)
     file.save(filepath)
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1️⃣ Update payment record with uploaded proof
+    # 1️⃣ Update payment proof
     cur.execute("""
         UPDATE payments
         SET payment_proof = %s
         WHERE id = %s
     """, (filename, payment_id))
 
-    # 2️⃣ Get payment + user + appliance info (include user_id!)
+    # 2️⃣ Get payment + user + appliance info
     cur.execute("""
         SELECT 
             p.id,
             p.loan_id,
             p.due_date,
-            u.id AS user_id,        -- important fix
+            u.id AS user_id,
             u.full_name,
             a.appliance_name
         FROM payments p
@@ -2717,24 +3185,23 @@ def upload_payment(payment_id):
 
     info = cur.fetchone()
 
+    # 3️⃣ Insert admin notification
     if info:
-        # Prepare notification message
         message = f"Payment proof uploaded by {info['full_name']} for {info['appliance_name']} (Due {info['due_date'].strftime('%B %d, %Y')})"
 
-        # 3️⃣ Insert notification for admin
         cur.execute("""
             INSERT INTO admin_notifications (user_id, payment_id, message, link, is_read, created_at)
             VALUES (%s, %s, %s, %s, 0, NOW())
         """, (
-            42,  # admin user ID
+            42,
             payment_id,
             message,
-            f"/admin/payments/{info['user_id']}/view"  # link to admin_customer_payments
+            f"/admin/payments/{info['user_id']}/view"
         ))
 
-    # Commit changes and close cursor
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
     flash("Payment proof uploaded successfully!", "success")
     return redirect(request.referrer)
@@ -2748,39 +3215,161 @@ def customer_ledger():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    admin_id = session['user_id']
+    search_query = request.args.get('q', '').strip()
 
-    search_query = request.args.get('q', '').strip()  # get search term
-
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
     base_sql = """
         SELECT 
+            u.id AS user_id,
             u.full_name AS customer_name,
             a.appliance_name,
             l.amount AS total_amount,
-            IFNULL(SUM(p.paid_amount), 0) AS total_payments,
-            l.amount - IFNULL(SUM(p.paid_amount), 0) AS balance
+            IFNULL(SUM(p.paid_amount),0) AS total_payments,
+            l.amount - IFNULL(SUM(p.paid_amount),0) AS balance
         FROM loans l
         JOIN users u ON l.user_id = u.id
         JOIN appliances a ON l.appliance_id = a.id
         LEFT JOIN payments p ON p.loan_id = l.id
     """
 
-    if search_query:
-        # filter by customer name or appliance name
-        base_sql += " WHERE u.full_name LIKE %s OR a.appliance_name LIKE %s"
+    params = []
 
-        cur.execute(base_sql + " GROUP BY l.id ORDER BY u.full_name, a.appliance_name",
-                    ('%' + search_query + '%', '%' + search_query + '%'))
-    else:
-        cur.execute(base_sql + " GROUP BY l.id ORDER BY u.full_name, a.appliance_name")
+    if search_query:
+        base_sql += """
+            WHERE u.full_name LIKE %s 
+               OR a.appliance_name LIKE %s
+        """
+        params = [f"%{search_query}%", f"%{search_query}%"]
+
+    base_sql += """
+        GROUP BY l.id
+        ORDER BY u.full_name, a.appliance_name
+    """
+
+    cur.execute(base_sql, params)
 
     ledger = cur.fetchall()
+
     cur.close()
+    conn.close()
 
-    return render_template('customer_ledger.html', ledger=ledger, search_query=search_query)
+    return render_template(
+        'customer_ledger.html',
+        ledger=ledger,
+        search_query=search_query
+    )
 
+# --- Detailed Ledger (JSON) ---
+from datetime import date
+
+@app.route("/admin/customer_ledger/<int:user_id>")
+def customer_ledger_user(user_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        # GET LOAN + UPDATED APPLIANCE NAME
+        cur.execute("""
+            SELECT 
+                l.id AS loan_id,
+                u.full_name AS customer,
+                a.appliance_name,
+                l.amount,
+                l.months,
+                l.created_at
+            FROM loans l
+            JOIN users u ON l.user_id = u.id
+            JOIN appliances a ON l.appliance_id = a.id
+            WHERE l.user_id = %s
+            LIMIT 1
+        """, (user_id,))
+
+        summary = cur.fetchone()
+
+        if not summary:
+            cur.close()
+            conn.close()
+            return jsonify({"error": "No loan found"}), 404
+
+        # TOTAL PAYMENTS
+        cur.execute("""
+            SELECT IFNULL(SUM(paid_amount),0) AS total_paid
+            FROM payments
+            WHERE loan_id = %s
+        """, (summary["loan_id"],))
+
+        payment_data = cur.fetchone()
+        total_paid = float(payment_data["total_paid"] or 0)
+
+        balance = float(summary["amount"]) - total_paid
+
+        # COMPUTE TERM END
+        from datetime import datetime
+        from dateutil.relativedelta import relativedelta
+
+        created_at = summary["created_at"]
+
+        if isinstance(created_at, str):
+            created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+
+        term_end = created_at + relativedelta(months=int(summary["months"]))
+
+        # GET PAYMENT DETAILS
+        cur.execute("""
+            SELECT 
+                month_no,
+                amount_due,
+                paid_amount,
+                due_date
+            FROM payments
+            WHERE loan_id = %s
+            ORDER BY month_no ASC
+        """, (summary["loan_id"],))
+
+        payments = cur.fetchall()
+
+        # RUNNING BALANCE
+        running_balance = float(summary["amount"])
+        details = []
+
+        for p in payments:
+            paid = float(p["paid_amount"] or 0)
+            due = float(p["amount_due"] or 0)
+
+            running_balance -= paid
+
+            details.append({
+                "month": p["month_no"],
+                "appliance_name": summary["appliance_name"],
+                "description": f"Payment for Month {p['month_no']}",
+                "amount_due": due,
+                "amount_paid": paid,
+                "arrears_overpay": paid - due,
+                "balance": running_balance,
+                "due_date": p["due_date"]
+            })
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "customer": summary["customer"],
+            "summary": {
+                "customer": summary["customer"],
+                "balance": balance,
+                "appliance_name": summary["appliance_name"],
+                "date_granted": created_at.strftime("%Y-%m-%d"),
+                "months": summary["months"],
+                "term_end": term_end.strftime("%Y-%m-%d")
+            },
+            "details": details
+        })
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
 @app.route("/test_reminder")
 def test_reminder():
     auto_send_reminders()
@@ -2788,7 +3377,6 @@ def test_reminder():
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=auto_send_reminders, trigger="interval", minutes=.5)
 scheduler.start()
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Use Render's PORT if available
-    app.run(debug=True, host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
