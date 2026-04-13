@@ -1818,7 +1818,7 @@ Greater RJ Appliance and Trading Corporation
     except Exception as e:
         return f"Error approving loan: {str(e)}"
 
-import qrcode
+
 from io import BytesIO
 from flask import send_file
 
