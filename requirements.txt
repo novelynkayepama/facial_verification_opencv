@@ -13,3 +13,4 @@ python-dateutil==2.9.0
 yagmail==0.14.260
 APScheduler==3.9.1
 reportlab==4.4.10
+setuptools==68.2.2
