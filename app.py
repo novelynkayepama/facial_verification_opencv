@@ -3,7 +3,6 @@ import cv2
 import os
 import numpy as np
 import base64
-from flask_mysqldb import MySQL
 import MySQLdb
 import MySQLdb.cursors
 from functools import wraps
