@@ -27,13 +27,13 @@ app = Flask(__name__)
 # ==============================
 # SECURE EMAIL (WITH FALLBACK)
 # ==============================
-EMAIL_USER = os.getenv("EMAIL_USER") or "novelynkaye2003@gmail.com"
-EMAIL_APP_PASSWORD = os.getenv("EMAIL_PASS") or "ovln uzvs ldkk kxwz"
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_APP_PASSWORD = os.getenv("EMAIL_PASS")
 
 # ==============================
 # SECRET KEY
 # ==============================
-app.secret_key = os.getenv("SECRET_KEY") or "supersecretkey"
+app.secret_key = os.getenv("SECRET_KEY") 
 
 # ==============================
 # MYSQL CONNECTION (RENDER / RAILWAY READY)
