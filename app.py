@@ -3371,7 +3371,7 @@ def test_reminder():
     auto_send_reminders()
     return "Reminder function executed!"
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=auto_send_reminders, trigger="interval", hours=24)
+scheduler.add_job(func=auto_send_reminders, trigger="interval", minutes=5)
 scheduler.start()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
