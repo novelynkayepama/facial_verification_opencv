@@ -1113,8 +1113,10 @@ def customer_loans():
 
 from flask import flash
 
-@app.route("/add_to_cart/<int:appliance_id>")
+@app.route("/add_to_cart/<int:appliance_id>", methods=["POST"])
 def add_to_cart(appliance_id):
+
+    print("ADD TO CART TRIGGERED")
 
     if "user_id" not in session:
         flash("Please log in first", "danger")
@@ -1125,7 +1127,6 @@ def add_to_cart(appliance_id):
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # ---------------- CHECK EXISTING ITEM ----------------
     cur.execute("""
         SELECT * FROM cart
         WHERE user_id = %s AND appliance_id = %s
@@ -1139,21 +1140,17 @@ def add_to_cart(appliance_id):
             SET quantity = quantity + 1
             WHERE user_id = %s AND appliance_id = %s
         """, (user_id, appliance_id))
-
-        flash("Item quantity updated in cart 🛒", "success")
-
     else:
         cur.execute("""
             INSERT INTO cart (user_id, appliance_id, quantity, date_added)
             VALUES (%s, %s, 1, NOW())
         """, (user_id, appliance_id))
 
-        flash("Item successfully added to cart 🛒", "success")
-
     conn.commit()
     cur.close()
     conn.close()
 
+    flash("Added to cart 🛒", "success")
     return redirect(url_for("index1"))
 
 
