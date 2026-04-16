@@ -3280,12 +3280,13 @@ def customer_ledger_user(user_id):
         conn = get_db_connection()
         cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-        # GET LOAN + UPDATED APPLIANCE NAME
+        # GET LATEST LOAN (or you can remove LIMIT if multiple loans needed)
         cur.execute("""
             SELECT 
                 l.id AS loan_id,
                 u.full_name AS customer,
                 a.appliance_name,
+                a.specs,
                 l.amount,
                 l.months,
                 l.created_at
@@ -3293,40 +3294,40 @@ def customer_ledger_user(user_id):
             JOIN users u ON l.user_id = u.id
             JOIN appliances a ON l.appliance_id = a.id
             WHERE l.user_id = %s
+            ORDER BY l.created_at DESC
             LIMIT 1
         """, (user_id,))
 
         summary = cur.fetchone()
 
         if not summary:
-            cur.close()
-            conn.close()
             return jsonify({"error": "No loan found"}), 404
+
+        loan_id = summary["loan_id"]
 
         # TOTAL PAYMENTS
         cur.execute("""
             SELECT IFNULL(SUM(paid_amount),0) AS total_paid
             FROM payments
             WHERE loan_id = %s
-        """, (summary["loan_id"],))
+        """, (loan_id,))
 
-        payment_data = cur.fetchone()
-        total_paid = float(payment_data["total_paid"] or 0)
+        total_paid = float(cur.fetchone()["total_paid"] or 0)
+        total_amount = float(summary["amount"] or 0)
 
-        balance = float(summary["amount"]) - total_paid
+        balance = total_amount - total_paid
 
-        # COMPUTE TERM END
+        # TERM END
         from datetime import datetime
         from dateutil.relativedelta import relativedelta
 
         created_at = summary["created_at"]
-
         if isinstance(created_at, str):
             created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
 
         term_end = created_at + relativedelta(months=int(summary["months"]))
 
-        # GET PAYMENT DETAILS
+        # GET PAYMENTS
         cur.execute("""
             SELECT 
                 month_no,
@@ -3336,12 +3337,12 @@ def customer_ledger_user(user_id):
             FROM payments
             WHERE loan_id = %s
             ORDER BY month_no ASC
-        """, (summary["loan_id"],))
+        """, (loan_id,))
 
         payments = cur.fetchall()
 
-        # RUNNING BALANCE
-        running_balance = float(summary["amount"])
+        # RUNNING BALANCE + PROPER LEDGER COMPUTATION
+        running_balance = total_amount
         details = []
 
         for p in payments:
@@ -3350,14 +3351,17 @@ def customer_ledger_user(user_id):
 
             running_balance -= paid
 
+            arrears = max(due - paid, 0)
+            overpayment = max(paid - due, 0)
+
             details.append({
                 "month": p["month_no"],
-                "appliance_name": summary["appliance_name"],
-                "description": f"Payment for Month {p['month_no']}",
                 "amount_due": due,
                 "amount_paid": paid,
-                "arrears_overpay": paid - due,
-                "balance": running_balance,
+                "arrears": arrears,
+                "overpayment": overpayment,
+                "total_payments": paid,
+                "running_balance": running_balance,
                 "due_date": p["due_date"]
             })
 
@@ -3368,8 +3372,10 @@ def customer_ledger_user(user_id):
             "customer": summary["customer"],
             "summary": {
                 "customer": summary["customer"],
+                "specs": summary["specs"],   # ✅ FIXED
                 "balance": balance,
                 "appliance_name": summary["appliance_name"],
+                "total_payments": total_paid,  # ✅ FIXED
                 "date_granted": created_at.strftime("%Y-%m-%d"),
                 "months": summary["months"],
                 "term_end": term_end.strftime("%Y-%m-%d")
