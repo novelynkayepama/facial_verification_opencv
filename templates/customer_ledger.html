@@ -5,188 +5,81 @@
 <title>Customer Ledger</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
 <style>
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f1f5f9;
-    padding: 20px;
-}
+body { background:#f1f5f9; padding:20px; font-family:Segoe UI; }
+h2 { text-align:center; color:#0ea5e9; margin-bottom:20px; }
 
-h2 {
-    text-align: center;
-    color: #0ea5e9;
-    margin-bottom: 30px;
-}
+.table th { background:#0ea5e9; color:white; }
+.clickable { cursor:pointer; color:#0ea5e9; text-decoration:underline; }
 
-.table th {
-    background-color: #0ea5e9;
-    color: white;
-}
-
-.table td, .table th {
-    vertical-align: middle;
-    text-align: center;
-}
-
-.search-box {
-    max-width: 400px;
-    margin: 0 auto 20px;
-}
-
-.no-data {
-    text-align: center;
-    margin-top: 50px;
-    font-size: 1.1rem;
-    color: #6b7280;
-}
-
-.clickable {
-    cursor: pointer;
-    color: #0ea5e9;
-    text-decoration: underline;
-}
-
-/* Header */
-.company-header {
-    background: linear-gradient(135deg, #0ea5e9, #1e3a8a);
-    border-radius: 15px;
-    color: white;
-    padding: 15px;
-    margin-bottom: 30px;
-}
-
-.company-logo {
-    width: 55px;
-    height: 55px;
-    object-fit: contain;
-    background: white;
-    padding: 6px;
-    border-radius: 12px;
-}
-
-.company-name {
-    font-weight: 700;
-}
-
-.company-sub {
-    font-size: 0.75rem;
-    opacity: 0.9;
-}
-
-/* Table readability */
-.table td {
-    white-space: normal;
-    word-break: break-word;
-    text-align: left;
-}
-
-.table td:nth-child(n+3) {
-    text-align: right;
-}
+.search-box { max-width:400px; margin:0 auto 15px; }
 </style>
 </head>
 
 <body>
 
-<!-- HEADER -->
-<div class="company-header d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-3">
-        <img src="{{ url_for('static', filename='uploads/logo.png') }}" class="company-logo">
-        <div>
-            <h4 class="company-name mb-0">GREATER RJ APPLIANCE</h4>
-            <small class="company-sub">AND TRADING CORPORATION</small>
-        </div>
-    </div>
-    <div class="text-end">
-        <h6 class="mb-0">Inventory Management System</h6>
-        <small>Installment-Based Monitoring Platform</small>
-    </div>
-</div>
+<h2>Customer Ledger</h2>
 
-<h2>📊 Customer Ledger</h2>
-
-<!-- SEARCH -->
 <div class="search-box">
-    <input type="text" id="ledgerSearch" class="form-control" placeholder="Search customer or appliance">
+<input type="text" id="search" class="form-control" placeholder="Search customer...">
 </div>
 
-<!-- TABLE -->
-<table class="table table-bordered table-striped" id="ledgerTable">
-
+<table class="table table-bordered" id="ledgerTable">
 <thead>
 <tr>
-    <th>Customer Name</th>
-    <th>Appliance Name</th>
-    <th>Total Amount</th>
-    <th>Total Payments</th>
-    <th>Balance</th>
+<th>Customer</th>
+<th>Appliance</th>
+<th>Total</th>
+<th>Paid</th>
+<th>Balance</th>
 </tr>
 </thead>
 
 <tbody>
 {% for row in ledger %}
 <tr>
-    <td class="clickable" data-userid="{{ row.user_id }}">
-        {{ row.customer_name }}
-    </td>
-    <td>{{ row.appliance_name }}</td>
-    <td>₱{{ "%.2f"|format(row.total_amount) }}</td>
-    <td>₱{{ "%.2f"|format(row.total_payments) }}</td>
-    <td>₱{{ "%.2f"|format(row.balance) }}</td>
+<td class="clickable" data-userid="{{ row.user_id }}">{{ row.customer_name }}</td>
+<td>{{ row.appliance_name }}</td>
+<td>₱{{ "%.2f"|format(row.total_amount) }}</td>
+<td>₱{{ "%.2f"|format(row.total_payments) }}</td>
+<td>₱{{ "%.2f"|format(row.balance) }}</td>
 </tr>
 {% endfor %}
 </tbody>
-
 </table>
 
-<p id="noData" class="no-data" style="display:none;">No matching records found.</p>
-
 <!-- MODAL -->
-<div class="modal fade" id="ledgerModal" tabindex="-1">
-<div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal fade" id="ledgerModal">
+<div class="modal-dialog modal-xl">
 <div class="modal-content">
 
 <div class="modal-header">
-    <h5 class="modal-title" id="ledgerTitle">Ledger Details</h5>
-    <button class="btn-close" data-bs-dismiss="modal"></button>
+<h5 class="modal-title">Ledger</h5>
+<button class="btn-close" data-bs-dismiss="modal"></button>
 </div>
 
 <div class="modal-body">
 
-<!-- SUMMARY -->
-<div class="mb-3">
-    <p><strong>Customer Name:</strong> <span id="custName"></span></p>
-    <p><strong>Item Name:</strong> <span id="custAppliance"></span></p>
-    <p><strong>Item Specs:</strong> <span id="custSpecs"></span></p>
-
-    <p><strong>Date Granted:</strong> <span id="custDateGranted"></span></p>
-    <p><strong>Term Ended:</strong> <span id="custTermEnd"></span></p>
-    <p><strong>No. of Months:</strong> <span id="custMonths"></span></p>
-
-    <p><strong>Total Payments:</strong> ₱<span id="custTotalPayments"></span></p>
-    <p><strong>Outstanding Balance:</strong> ₱<span id="custBalance"></span></p>
-</div>
+<p><b>Customer:</b> <span id="custName"></span></p>
+<p><b>Item:</b> <span id="custAppliance"></span></p>
+<p><b>Specs:</b> <span id="custSpecs"></span></p>
+<p><b>Balance:</b> ₱<span id="custBalance"></span></p>
 
 <hr>
 
-<!-- DETAILS -->
-<table class="table table-bordered table-striped">
-<thead class="table-primary">
+<table class="table table-bordered">
+<thead>
 <tr>
-    <th>Month</th>
-    <th>Due Date</th>
-    <th>Amount Due</th>
-    <th>Total Paid</th>
-    <th>Arrears</th>
-    <th>Overpayment</th>
-    <th>Total Payments</th>
-    <th>Running Balance</th>
+<th>Month</th>
+<th>Due</th>
+<th>Paid</th>
+<th>Arrears</th>
+<th>Overpay</th>
+<th>Balance</th>
 </tr>
 </thead>
-
-<tbody id="detailBody"></tbody>
+<tbody id="details"></tbody>
 </table>
 
 </div>
@@ -198,108 +91,58 @@ h2 {
 
 <script>
 
-// SEARCH
-const searchInput = document.getElementById('ledgerSearch');
-const table = document.getElementById('ledgerTable');
-const noData = document.getElementById('noData');
-
-searchInput.addEventListener('input', () => {
-    const filter = searchInput.value.toLowerCase();
-    let visible = 0;
-
-    table.querySelectorAll('tbody tr').forEach(row => {
-        const customer = row.cells[0].textContent.toLowerCase();
-        const appliance = row.cells[1].textContent.toLowerCase();
-
-        if (customer.includes(filter) || appliance.includes(filter)) {
-            row.style.display = '';
-            visible++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-
-    noData.style.display = visible === 0 ? 'block' : 'none';
-});
-
-// DATE FORMAT
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-}
-
-// CLICK (FIXED EVENT DELEGATION)
+// CLICK FIX (IMPORTANT)
 document.getElementById('ledgerTable').addEventListener('click', async (e) => {
     const cell = e.target.closest('.clickable');
     if (!cell) return;
 
     const userId = cell.dataset.userid;
 
-    if (!userId) {
-        alert("Invalid user ID");
-        return;
-    }
-
     try {
         const res = await fetch(`/admin/customer_ledger/${userId}`);
 
         if (!res.ok) {
-            alert("Failed to load ledger");
+            const errText = await res.text();
+            console.error("SERVER ERROR:", errText);
+            alert("Failed to load ledger (check backend)");
             return;
         }
 
         const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
         const s = data.summary;
 
-        // SUMMARY
         document.getElementById('custName').textContent = s.customer;
         document.getElementById('custAppliance').textContent = s.appliance_name;
-        document.getElementById('custSpecs').textContent = s.specs || '';
-        document.getElementById('custDateGranted').textContent = formatDate(s.date_granted);
-        document.getElementById('custTermEnd').textContent = formatDate(s.term_end);
-        document.getElementById('custMonths').textContent = s.months;
+        document.getElementById('custSpecs').textContent = s.specs;
+        document.getElementById('custBalance').textContent = parseFloat(s.balance).toFixed(2);
 
-        document.getElementById('custTotalPayments').textContent =
-            parseFloat(s.total_payments || 0).toFixed(2);
-
-        document.getElementById('custBalance').textContent =
-            parseFloat(s.balance || 0).toFixed(2);
-
-        // DETAILS
-        const body = document.getElementById('detailBody');
+        const body = document.getElementById('details');
         body.innerHTML = "";
 
-        data.details.forEach(item => {
-            const tr = document.createElement('tr');
-
-            tr.innerHTML = `
-                <td>${item.month}</td>
-                <td>${formatDate(item.due_date)}</td>
-                <td>₱${parseFloat(item.amount_due).toFixed(2)}</td>
-                <td>₱${parseFloat(item.amount_paid).toFixed(2)}</td>
-                <td class="${item.arrears > 0 ? 'text-danger fw-bold' : ''}">
-                    ₱${parseFloat(item.arrears).toFixed(2)}
-                </td>
-                <td class="${item.overpayment > 0 ? 'text-success fw-bold' : ''}">
-                    ₱${parseFloat(item.overpayment).toFixed(2)}
-                </td>
-                <td>₱${parseFloat(item.total_payments).toFixed(2)}</td>
-                <td>₱${parseFloat(item.running_balance).toFixed(2)}</td>
+        data.details.forEach(d => {
+            body.innerHTML += `
+                <tr>
+                    <td>${d.month}</td>
+                    <td>₱${d.amount_due.toFixed(2)}</td>
+                    <td>₱${d.amount_paid.toFixed(2)}</td>
+                    <td class="text-danger">₱${d.arrears.toFixed(2)}</td>
+                    <td class="text-success">₱${d.overpayment.toFixed(2)}</td>
+                    <td>₱${d.running_balance.toFixed(2)}</td>
+                </tr>
             `;
-
-            body.appendChild(tr);
         });
 
         new bootstrap.Modal(document.getElementById('ledgerModal')).show();
 
     } catch (err) {
         console.error(err);
-        alert("Error loading ledger");
+        alert("Network error or backend not responding");
     }
 });
 

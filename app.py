@@ -3280,7 +3280,7 @@ def customer_ledger_user(user_id):
         conn = get_db_connection()
         cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-        # GET LATEST LOAN (or you can remove LIMIT if multiple loans needed)
+        # GET LATEST LOAN
         cur.execute("""
             SELECT 
                 l.id AS loan_id,
@@ -3301,13 +3301,15 @@ def customer_ledger_user(user_id):
         summary = cur.fetchone()
 
         if not summary:
-            return jsonify({"error": "No loan found"}), 404
+            return jsonify({
+                "error": "No loan found for this user"
+            }), 404
 
         loan_id = summary["loan_id"]
 
-        # TOTAL PAYMENTS
+        # TOTAL PAID
         cur.execute("""
-            SELECT IFNULL(SUM(paid_amount),0) AS total_paid
+            SELECT COALESCE(SUM(paid_amount),0) AS total_paid
             FROM payments
             WHERE loan_id = %s
         """, (loan_id,))
@@ -3322,12 +3324,13 @@ def customer_ledger_user(user_id):
         from dateutil.relativedelta import relativedelta
 
         created_at = summary["created_at"]
+
         if isinstance(created_at, str):
             created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
 
         term_end = created_at + relativedelta(months=int(summary["months"]))
 
-        # GET PAYMENTS
+        # PAYMENT DETAILS
         cur.execute("""
             SELECT 
                 month_no,
@@ -3341,7 +3344,6 @@ def customer_ledger_user(user_id):
 
         payments = cur.fetchall()
 
-        # RUNNING BALANCE + PROPER LEDGER COMPUTATION
         running_balance = total_amount
         details = []
 
@@ -3356,35 +3358,34 @@ def customer_ledger_user(user_id):
 
             details.append({
                 "month": p["month_no"],
+                "due_date": p["due_date"],
                 "amount_due": due,
                 "amount_paid": paid,
                 "arrears": arrears,
                 "overpayment": overpayment,
                 "total_payments": paid,
-                "running_balance": running_balance,
-                "due_date": p["due_date"]
+                "running_balance": running_balance
             })
 
         cur.close()
         conn.close()
 
         return jsonify({
-            "customer": summary["customer"],
             "summary": {
                 "customer": summary["customer"],
-                "specs": summary["specs"],   # ✅ FIXED
-                "balance": balance,
                 "appliance_name": summary["appliance_name"],
-                "total_payments": total_paid,  # ✅ FIXED
+                "specs": summary["specs"] or "",
                 "date_granted": created_at.strftime("%Y-%m-%d"),
+                "term_end": term_end.strftime("%Y-%m-%d"),
                 "months": summary["months"],
-                "term_end": term_end.strftime("%Y-%m-%d")
+                "total_payments": total_paid,
+                "balance": balance
             },
             "details": details
         })
 
     except Exception as e:
-        print("ERROR:", str(e))
+        print("ERROR:", e)
         return jsonify({"error": str(e)}), 500
 @app.route("/test_reminder")
 def test_reminder():
