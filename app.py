@@ -1929,144 +1929,144 @@ def payments():
 # Update a specific payment from admin panel
 @app.route('/update_partial_payments/<int:user_id>', methods=['POST'])
 def update_partial_payments(user_id):
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    payment_id = request.form.get('update_payment')
+
+    if not payment_id:
+        cur.close()
+        conn.close()
+        flash("No payment selected.", "danger")
+        return redirect(url_for('view_customer_payments', user_id=user_id))
+
+    # ===== GET PAYMENT =====
+    cur.execute("SELECT * FROM payments WHERE id=%s", (payment_id,))
+    payment = cur.fetchone()
+
+    if not payment:
+        cur.close()
+        conn.close()
+        flash("Payment not found.", "danger")
+        return redirect(url_for('view_customer_payments', user_id=user_id))
+
+    # ===== GET INPUT =====
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+        paid_amount = float(request.form.get(f"paid_{payment_id}", 0))
+    except:
+        cur.close()
+        conn.close()
+        flash("Invalid payment amount.", "danger")
+        return redirect(url_for('view_customer_payments', user_id=user_id))
 
-        payment_id = request.form.get('update_payment')
+    current_due = float(payment['amount_due'])
 
-        if not payment_id:
-            cur.close()
-            conn.close()
-            flash("No payment selected.", "danger")
-            return redirect(url_for('view_customer_payments', user_id=user_id))
+    arrears = max(current_due - paid_amount, 0)
+    overpayment = max(paid_amount - current_due, 0)
+    adjustment = arrears - overpayment
 
-        # ===== GET PAYMENT =====
-        cur.execute("SELECT * FROM payments WHERE id=%s", (payment_id,))
-        payment = cur.fetchone()
+    # ===== STATUS =====
+    if paid_amount >= current_due:
+        status = 'paid'
+        paid_at = datetime.now()
+        payment_type = "Paid in Full ✅"
 
-        if not payment:
-            cur.close()
-            conn.close()
-            flash("Payment not found.", "danger")
-            return redirect(url_for('view_customer_payments', user_id=user_id))
+    elif paid_amount > 0:
+        status = 'partial'
+        paid_at = None
+        payment_type = "Partial Payment ⚠️"
 
-        # ===== GET INPUT =====
-        try:
-            paid_amount = float(request.form.get(f"paid_{payment_id}", 0) or 0)
-        except:
-            cur.close()
-            conn.close()
-            flash("Invalid payment amount.", "danger")
-            return redirect(url_for('view_customer_payments', user_id=user_id))
+    else:
+        status = 'not_paid'
+        paid_at = None
+        payment_type = "Not Paid ❌"
 
-        # ✅ SAFE current_due
-        current_due = float(payment.get('amount_due') or 0)
+    # ===== UPDATE CURRENT PAYMENT =====
+    cur.execute("""
+        UPDATE payments
+        SET paid_amount=%s,
+            status=%s,
+            arrears=%s,
+            paid_at=%s
+        WHERE id=%s
+    """, (paid_amount, status, arrears, paid_at, payment_id))
 
-        arrears = max(current_due - paid_amount, 0)
-        overpayment = max(paid_amount - current_due, 0)
-        adjustment = arrears - overpayment
+    # ===== NEXT PAYMENT =====
+    cur.execute("""
+        SELECT * FROM payments
+        WHERE loan_id=%s AND month_no=%s
+    """, (payment['loan_id'], payment['month_no'] + 1))
 
-        # ===== STATUS =====
-        if paid_amount >= current_due:
-            status = 'paid'
-            paid_at = datetime.now()
-            payment_type = "Paid in Full ✅"
+    next_payment = cur.fetchone()
+    next_due_msg = ""
 
-        elif paid_amount > 0:
-            status = 'partial'
-            paid_at = None
-            payment_type = "Partial Payment ⚠️"
+    if next_payment:
 
-        else:
-            status = 'not_paid'
-            paid_at = None
-            payment_type = "Not Paid ❌"
+        base_due = float(next_payment.get('original_amount_due') or next_payment['amount_due'])
 
-        # ===== UPDATE CURRENT PAYMENT =====
+        next_due = base_due + adjustment
+        next_due = max(next_due, 0)
+
         cur.execute("""
             UPDATE payments
-            SET paid_amount=%s,
-                status=%s,
-                arrears=%s,
-                paid_at=%s
+            SET amount_due=%s
             WHERE id=%s
-        """, (paid_amount, status, arrears, paid_at, payment_id))
+        """, (next_due, next_payment['id']))
 
-        # ===== NEXT PAYMENT =====
+        next_due_msg = f"\nNext Month's Adjusted Due: ₱{next_due:.2f}"
+
+    conn.commit()
+
+    # ===== EMAIL SECTION =====
+    try:
         cur.execute("""
-            SELECT * FROM payments
-            WHERE loan_id=%s AND month_no=%s
-        """, (payment['loan_id'], payment['month_no'] + 1))
+            SELECT u.full_name, u.email, a.appliance_name
+            FROM loans l
+            JOIN users u ON l.user_id = u.id
+            JOIN appliances a ON l.appliance_id = a.id
+            WHERE l.id = %s
+        """, (payment['loan_id'],))
 
-        next_payment = cur.fetchone()
-        next_due_msg = ""
+        info = cur.fetchone()
 
-        if next_payment:
-            base_due = float(next_payment.get('original_amount_due') or next_payment.get('amount_due') or 0)
+        if info:
 
-            next_due = base_due + adjustment
-            next_due = max(next_due, 0)
+            pdf_buffer = io.BytesIO()
+            c = canvas.Canvas(pdf_buffer, pagesize=(400, 420))
 
-            cur.execute("""
-                UPDATE payments
-                SET amount_due=%s
-                WHERE id=%s
-            """, (next_due, next_payment['id']))
+            receipt_no = f"RJ-{int(payment_id):06d}"
+            today = datetime.now().strftime("%B %d, %Y")
+            due_date_value = payment.get('due_date')
 
-            next_due_msg = f"\nNext Month's Adjusted Due: ₱{next_due:.2f}"
+        if due_date_value:
+        if isinstance(due_date_value, str):
+            due_date = due_date_value  # already string
+        else:
+            due_date = due_date_value.strftime("%B %d, %Y")
+        else:
+            due_date = "N/A"
 
-        conn.commit()
+            c.rect(10, 10, 380, 400)
 
-        # ===== EMAIL SECTION =====
-        try:
-            cur.execute("""
-                SELECT u.full_name, u.email, a.appliance_name
-                FROM loans l
-                JOIN users u ON l.user_id = u.id
-                JOIN appliances a ON l.appliance_id = a.id
-                WHERE l.id = %s
-            """, (payment['loan_id'],))
+            c.setFont("Helvetica-Bold", 12)
+            c.drawCentredString(200, 380, "GREATER RJ Appliance & Trading Corp")
 
-            info = cur.fetchone()
+            c.setFont("Helvetica", 10)
+            c.drawString(20, 335, f"Receipt No : {receipt_no}")
+            c.drawString(20, 320, f"Date       : {today}")
+            c.drawString(20, 295, f"Customer   : {info['full_name']}")
+            c.drawString(20, 280, f"Appliance  : {info['appliance_name']}")
+            c.drawString(20, 255, f"Due Date   : {due_date}")
 
-            if info:
-                pdf_buffer = io.BytesIO()
-                c = canvas.Canvas(pdf_buffer, pagesize=(400, 420))
+            c.drawString(20, 225, f"Amount Due : ₱{current_due:,.2f}")
+            c.drawString(20, 210, f"Amount Paid: ₱{paid_amount:,.2f}")
 
-                receipt_no = f"RJ-{int(payment_id):06d}"
-                today = datetime.now().strftime("%B %d, %Y")
+            c.showPage()
+            c.save()
+            pdf_buffer.seek(0)
 
-                # ✅ SAFE due_date
-                due_date_value = payment.get('due_date')
-                if due_date_value:
-                    if isinstance(due_date_value, str):
-                        due_date = due_date_value
-                    else:
-                        due_date = due_date_value.strftime("%B %d, %Y")
-                else:
-                    due_date = "N/A"
-
-                c.rect(10, 10, 380, 400)
-
-                c.setFont("Helvetica-Bold", 12)
-                c.drawCentredString(200, 380, "GREATER RJ Appliance & Trading Corp")
-
-                c.setFont("Helvetica", 10)
-                c.drawString(20, 335, f"Receipt No : {receipt_no}")
-                c.drawString(20, 320, f"Date       : {today}")
-                c.drawString(20, 295, f"Customer   : {info['full_name']}")
-                c.drawString(20, 280, f"Appliance  : {info['appliance_name']}")
-                c.drawString(20, 255, f"Due Date   : {due_date}")
-
-                c.drawString(20, 225, f"Amount Due : ₱{current_due:,.2f}")
-                c.drawString(20, 210, f"Amount Paid: ₱{paid_amount:,.2f}")
-
-                c.showPage()
-                c.save()
-                pdf_buffer.seek(0)
-
-                body = f"""
+            body = f"""
 Hello {info['full_name']},
 
 Your payment of ₱{paid_amount:.2f} has been updated.
@@ -2075,31 +2075,25 @@ Status: {payment_type}
 
 Thank you,
 Greater RJ Appliance and Trading Corporation
-                """
+            """
 
-                yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
+            yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
 
-                yag.send(
-                    to=info['email'],
-                    subject="Payment Update",
-                    contents=body,
-                    attachments=[pdf_buffer]
-                )
-
-        except Exception as e:
-            print("Email error:", e)
-
-        cur.close()
-        conn.close()
-
-        flash("Payment updated successfully ✅", "success")
-        return redirect(url_for('view_customer_payments', user_id=user_id))
+            yag.send(
+                to=info['email'],
+                subject="Payment Update",
+                contents=body,
+                attachments=[pdf_buffer]
+            )
 
     except Exception as e:
-        import traceback
-        print("CRASH:", e)
-        traceback.print_exc()
-        return str(e)
+        print("Email error:", e)
+
+    cur.close()
+    conn.close()
+
+    flash("Payment updated successfully ✅", "success")
+    return redirect(url_for('view_customer_payments', user_id=user_id))
 
 
 
@@ -3280,13 +3274,12 @@ def customer_ledger_user(user_id):
         conn = get_db_connection()
         cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-        # GET LATEST LOAN
+        # GET LOAN + UPDATED APPLIANCE NAME
         cur.execute("""
             SELECT 
                 l.id AS loan_id,
                 u.full_name AS customer,
                 a.appliance_name,
-                a.specs,
                 l.amount,
                 l.months,
                 l.created_at
@@ -3294,32 +3287,29 @@ def customer_ledger_user(user_id):
             JOIN users u ON l.user_id = u.id
             JOIN appliances a ON l.appliance_id = a.id
             WHERE l.user_id = %s
-            ORDER BY l.created_at DESC
             LIMIT 1
         """, (user_id,))
 
         summary = cur.fetchone()
 
         if not summary:
-            return jsonify({
-                "error": "No loan found for this user"
-            }), 404
+            cur.close()
+            conn.close()
+            return jsonify({"error": "No loan found"}), 404
 
-        loan_id = summary["loan_id"]
-
-        # TOTAL PAID
+        # TOTAL PAYMENTS
         cur.execute("""
-            SELECT COALESCE(SUM(paid_amount),0) AS total_paid
+            SELECT IFNULL(SUM(paid_amount),0) AS total_paid
             FROM payments
             WHERE loan_id = %s
-        """, (loan_id,))
+        """, (summary["loan_id"],))
 
-        total_paid = float(cur.fetchone()["total_paid"] or 0)
-        total_amount = float(summary["amount"] or 0)
+        payment_data = cur.fetchone()
+        total_paid = float(payment_data["total_paid"] or 0)
 
-        balance = total_amount - total_paid
+        balance = float(summary["amount"]) - total_paid
 
-        # TERM END
+        # COMPUTE TERM END
         from datetime import datetime
         from dateutil.relativedelta import relativedelta
 
@@ -3330,7 +3320,7 @@ def customer_ledger_user(user_id):
 
         term_end = created_at + relativedelta(months=int(summary["months"]))
 
-        # PAYMENT DETAILS
+        # GET PAYMENT DETAILS
         cur.execute("""
             SELECT 
                 month_no,
@@ -3340,11 +3330,12 @@ def customer_ledger_user(user_id):
             FROM payments
             WHERE loan_id = %s
             ORDER BY month_no ASC
-        """, (loan_id,))
+        """, (summary["loan_id"],))
 
         payments = cur.fetchall()
 
-        running_balance = total_amount
+        # RUNNING BALANCE
+        running_balance = float(summary["amount"])
         details = []
 
         for p in payments:
@@ -3353,39 +3344,35 @@ def customer_ledger_user(user_id):
 
             running_balance -= paid
 
-            arrears = max(due - paid, 0)
-            overpayment = max(paid - due, 0)
-
             details.append({
                 "month": p["month_no"],
-                "due_date": p["due_date"],
+                "appliance_name": summary["appliance_name"],
+                "description": f"Payment for Month {p['month_no']}",
                 "amount_due": due,
                 "amount_paid": paid,
-                "arrears": arrears,
-                "overpayment": overpayment,
-                "total_payments": paid,
-                "running_balance": running_balance
+                "arrears_overpay": paid - due,
+                "balance": running_balance,
+                "due_date": p["due_date"]
             })
 
         cur.close()
         conn.close()
 
         return jsonify({
+            "customer": summary["customer"],
             "summary": {
                 "customer": summary["customer"],
+                "balance": balance,
                 "appliance_name": summary["appliance_name"],
-                "specs": summary["specs"] or "",
                 "date_granted": created_at.strftime("%Y-%m-%d"),
-                "term_end": term_end.strftime("%Y-%m-%d"),
                 "months": summary["months"],
-                "total_payments": total_paid,
-                "balance": balance
+                "term_end": term_end.strftime("%Y-%m-%d")
             },
             "details": details
         })
 
     except Exception as e:
-        print("ERROR:", e)
+        print("ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
 @app.route("/test_reminder")
 def test_reminder():
