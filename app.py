@@ -2037,7 +2037,15 @@ def update_partial_payments(user_id):
 
             receipt_no = f"RJ-{int(payment_id):06d}"
             today = datetime.now().strftime("%B %d, %Y")
-            due_date = payment['due_date'].strftime("%B %d, %Y")
+            due_date_value = payment.get('due_date')
+
+        if due_date_value:
+        if isinstance(due_date_value, str):
+            due_date = due_date_value  # already string
+        else:
+            due_date = due_date_value.strftime("%B %d, %Y")
+        else:
+            due_date = "N/A"
 
             c.rect(10, 10, 380, 400)
 
