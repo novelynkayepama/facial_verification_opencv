@@ -2244,6 +2244,78 @@ def inject_cart_count():
 
 
 
+@app.route("/admin/edit_appliance/<int:appliance_id>", methods=["GET", "POST"])
+def edit_appliance(appliance_id):
+
+    if "user_id" not in session:
+        flash("Please login first", "danger")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("SELECT * FROM appliances WHERE id=%s", (appliance_id,))
+    appliance = cur.fetchone()
+
+    if not appliance:
+        cur.close()
+        conn.close()
+        flash("Appliance not found", "danger")
+        return redirect(url_for("admin_appliances"))
+
+    if request.method == "POST":
+        name = request.form["appliance_name"]
+        category = request.form["category"]
+        price = request.form["price"]
+        new_stock = int(request.form["stock"])
+        image = request.files.get("image")
+
+        image_path_db = appliance["image"]
+
+        if image and image.filename != "":
+            filename = secure_filename(image.filename)
+            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+            image_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            image.save(image_path)
+            image_path_db = f"uploads/appliances/{filename}"
+
+        old_stock = appliance["stock"]
+        difference = new_stock - old_stock
+
+        cur.execute("""
+            UPDATE appliances
+            SET appliance_name=%s,
+                category=%s,
+                price=%s,
+                stock=%s,
+                image=%s
+            WHERE id=%s
+        """, (name, category, price, new_stock, image_path_db, appliance_id))
+
+        if difference != 0:
+            movement_type = "stock_in" if difference > 0 else "stock_out"
+
+            cur.execute("""
+                INSERT INTO stock_movements 
+                (appliance_id, movement_type, quantity, reference_note)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                appliance_id,
+                movement_type,
+                abs(difference),
+                "Manual stock adjustment (Admin Edit)"
+            ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        flash("Appliance updated successfully", "success")
+        return redirect(url_for("admin_appliances"))
+
+    cur.close()
+    conn.close()
+    return render_template("edit_appliance.html", appliance=appliance)
 
 
 
