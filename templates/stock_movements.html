@@ -58,11 +58,23 @@ This report shows all stock changes for this appliance.
 
     <h1>📦 Stock Movement History</h1>
 <div class="summary-box">
-    <h5>📊 Summary</h5>
-    <p><strong>Total Items Added:</strong> {{ totals.total_in }}</p>
-    <p><strong>Total Items Removed:</strong> {{ totals.total_out }}</p>
-    <p><strong>Net Movement:</strong> {{ totals.total_in - totals.total_out }}</p>
+
+    <h5>📊 Appliance Summary</h5>
+
+    <p><strong>Appliance:</strong> {{ summary.appliance_name }}</p>
+
+    <p><strong>Current Stock Available:</strong> {{ summary.current_stock }}</p>
+
+    <p><strong>Total Items Added:</strong> {{ summary.total_in }}</p>
+
+    <p><strong>Total Items Removed:</strong> {{ summary.total_out }}</p>
+
+    <p><strong>Net Movement:</strong> {{ summary.total_in - summary.total_out }}</p>
+
 </div>
+<button onclick="window.print()" class="btn btn-primary mb-3">
+    🖨 Print Report
+</button>
     <div class="card p-4">
 
         <div class="table-responsive">
@@ -70,7 +82,7 @@ This report shows all stock changes for this appliance.
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Appliance</th>
+                       
                        <th>Action</th>
                         <th>Number of Items</th>
                         <th>Reference</th>
@@ -81,7 +93,7 @@ This report shows all stock changes for this appliance.
                     <tr>
                         <tr class="{% if m.movement_type == 'stock_out' %}table-danger{% else %}table-success{% endif %}"></tr>
                         <td>{{ m.movement_date.strftime("%B %d, %Y %I:%M %p") }}</td>
-                        <td>{{ m.appliance_name }}</td>
+                       
                         <td>
                             {% if m.movement_type == 'stock_in' %}
                                 <span class="badge badge-in">Items Added</span>

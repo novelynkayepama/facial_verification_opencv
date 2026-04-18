@@ -2689,30 +2689,43 @@ def appliance_stock_movements(appliance_id):
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Get movements
+    # Movements list
     cur.execute("""
-        SELECT sm.*, a.appliance_name
+        SELECT sm.*, a.appliance_name, a.stock
         FROM stock_movements sm
         JOIN appliances a ON sm.appliance_id = a.id
         WHERE sm.appliance_id = %s
         ORDER BY sm.movement_date DESC
     """, (appliance_id,))
+
     movements = cur.fetchall()
 
-    # ✅ Get totals
+    # Summary FIXED
     cur.execute("""
         SELECT 
-            COALESCE(SUM(CASE WHEN movement_type='stock_in' THEN quantity END), 0) AS total_in,
-            COALESCE(SUM(CASE WHEN movement_type='stock_out' THEN quantity END), 0) AS total_out
-        FROM stock_movements
-        WHERE appliance_id = %s
+            a.appliance_name,
+            a.stock AS current_stock,
+
+            COALESCE(SUM(CASE WHEN sm.movement_type='stock_in' THEN sm.quantity ELSE 0 END), 0) AS total_in,
+
+            COALESCE(SUM(CASE WHEN sm.movement_type='stock_out' THEN sm.quantity ELSE 0 END), 0) AS total_out
+
+        FROM appliances a
+        LEFT JOIN stock_movements sm ON a.id = sm.appliance_id
+        WHERE a.id = %s
+        GROUP BY a.id
     """, (appliance_id,))
-    totals = cur.fetchone()
+
+    summary = cur.fetchone()
 
     cur.close()
     conn.close()
 
-    return render_template("stock_movements.html", movements=movements, totals=totals)
+    return render_template(
+        "stock_movements.html",
+        movements=movements,
+        summary=summary
+    )
 
 
 # =========================
