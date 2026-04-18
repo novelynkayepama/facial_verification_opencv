@@ -2702,18 +2702,18 @@ def appliance_stock_movements(appliance_id):
 
     # Summary FIXED
     cur.execute("""
-        SELECT 
-            a.appliance_name,
-            a.stock AS current_stock,
+    SELECT 
+        a.appliance_name,
+        a.stock AS current_stock,
 
-            COALESCE(SUM(CASE WHEN sm.movement_type='stock_in' THEN sm.quantity ELSE 0 END), 0) AS total_in,
+        COALESCE(SUM(CASE WHEN sm.movement_type='stock_in' THEN sm.quantity ELSE 0 END), 0) AS total_in,
 
-            COALESCE(SUM(CASE WHEN sm.movement_type='stock_out' THEN sm.quantity ELSE 0 END), 0) AS total_out
+        COALESCE(SUM(CASE WHEN sm.movement_type='stock_out' THEN sm.quantity ELSE 0 END), 0) AS total_out
 
-        FROM appliances a
-        LEFT JOIN stock_movements sm ON a.id = sm.appliance_id
-        WHERE a.id = %s
-        GROUP BY a.id
+    FROM appliances a
+    LEFT JOIN stock_movements sm ON a.id = sm.appliance_id
+    WHERE a.id = %s
+    GROUP BY a.id
     """, (appliance_id,))
 
     summary = cur.fetchone()
