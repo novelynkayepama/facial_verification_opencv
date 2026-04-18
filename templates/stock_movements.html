@@ -65,13 +65,13 @@ This report shows all stock changes for this appliance.
 
     <p><strong>Total Stock In:</strong> {{ summary.total_in }}</p>
 
-    <p><strong>Total Stock Out:</strong> {{ stock_out }}</p>
+    <p><strong>Total Stock Out:</strong> {{ summary.total_out }}</p>
 
     <hr>
 
     <p>
         <strong>Net Movement:</strong> 
-        {{ summary.total_in - stock_out }}
+        {{ summary.total_in - summary.total_out }}
     </p>
 
 </div>
