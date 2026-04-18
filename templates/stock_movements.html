@@ -59,33 +59,19 @@ This report shows all stock changes for this appliance.
     <h1>📦 Stock Movement History</h1>
 <div class="summary-box">
 
-    <h5>📊 Appliance Stock Summary</h5>
+    <h5>📊 Stock Summary</h5>
 
-    <p><strong>Current Stock Available:</strong> {{ summary.current_stock }}</p>
+    <p><strong>Current Stock:</strong> {{ summary.current_stock }}</p>
 
-    <p><strong>Total Items Added (Stock In):</strong> {{ summary.total_in }}</p>
+    <p><strong>Total Stock In:</strong> {{ summary.total_in }}</p>
 
-    <p><strong>Total Items Removed (Stock Out):</strong> {{ summary.total_out }}</p>
-
-    <p>
-        <strong>Net Movement:</strong> 
-        {{ summary.total_in - summary.total_out }}
-    </p>
+    <p><strong>Total Stock Out:</strong> {{ summary.total_out }}</p>
 
     <hr>
 
     <p>
-        <strong>Stock Verification:</strong><br>
-
-        {% set computed_stock = summary.total_in - summary.total_out %}
-
-        {% if computed_stock == summary.current_stock %}
-            <span style="color:green;">✔ Stock is correct</span>
-        {% else %}
-            <span style="color:red;">
-                ⚠ Mismatch detected (Check transactions)
-            </span>
-        {% endif %}
+        <strong>Net Movement:</strong> 
+        {{ summary.total_in - summary.total_out }}
     </p>
 
 </div>
