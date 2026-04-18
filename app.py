@@ -2689,6 +2689,7 @@ def appliance_stock_movements(appliance_id):
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
+    # Get movements
     cur.execute("""
         SELECT sm.*, a.appliance_name
         FROM stock_movements sm
@@ -2696,13 +2697,22 @@ def appliance_stock_movements(appliance_id):
         WHERE sm.appliance_id = %s
         ORDER BY sm.movement_date DESC
     """, (appliance_id,))
-
     movements = cur.fetchall()
+
+    # ✅ Get totals
+    cur.execute("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN movement_type='stock_in' THEN quantity END), 0) AS total_in,
+            COALESCE(SUM(CASE WHEN movement_type='stock_out' THEN quantity END), 0) AS total_out
+        FROM stock_movements
+        WHERE appliance_id = %s
+    """, (appliance_id,))
+    totals = cur.fetchone()
 
     cur.close()
     conn.close()
 
-    return render_template("stock_movements.html", movements=movements)
+    return render_template("stock_movements.html", movements=movements, totals=totals)
 
 
 # =========================
