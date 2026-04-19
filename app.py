@@ -2371,8 +2371,11 @@ def edit_appliance(appliance_id):
 
 
 
-@app.route("/admin/reports/loan_decisions", methods=["GET", "POST"])
+
+
+@app.route("/admin/reports/loan_decisions", methods=["GET"])
 def report_loan_decisions():
+
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
@@ -2388,6 +2391,7 @@ def report_loan_decisions():
         JOIN appliances a ON l.appliance_id = a.id
         WHERE 1=1
     """
+
     params = []
 
     if from_date:
@@ -2398,8 +2402,8 @@ def report_loan_decisions():
         query += " AND DATE(l.applied_on) <= %s"
         params.append(to_date)
 
-    if status in ["Approved", "Pending", "Denied"]:
-        query += " AND l.status=%s"
+    if status:
+        query += " AND l.status = %s"
         params.append(status)
 
     query += " ORDER BY l.applied_on DESC"
@@ -2407,6 +2411,7 @@ def report_loan_decisions():
     cur.execute(query, params)
     loans = cur.fetchall()
 
+    # ================= COUNTS =================
     approved_count = sum(1 for l in loans if l["status"].lower() == "approved")
     denied_count = sum(1 for l in loans if l["status"].lower() == "denied")
     pending_count = sum(1 for l in loans if l["status"].lower() == "pending")
@@ -2414,15 +2419,42 @@ def report_loan_decisions():
     cur.close()
     conn.close()
 
+    # ================= DATE FORMATTING =================
+    def format_date(d):
+        if not d:
+            return None
+        return datetime.strptime(str(d), "%Y-%m-%d").strftime("%B %d, %Y")
+
+    from_date_long = format_date(from_date)
+    to_date_long = format_date(to_date)
+
+    # ================= SMART HEADER =================
+    status_text = "ALL LOANS"
+    if status:
+        status_text = f"{status.upper()} LOANS"
+
+    if from_date_long and to_date_long:
+        date_text = f"From {from_date_long} to {to_date_long}"
+    elif from_date_long:
+        date_text = f"From {from_date_long}"
+    elif to_date_long:
+        date_text = f"Until {to_date_long}"
+    else:
+        date_text = "Full History"
+
+    generated_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
+
+    report_title = f"Loan Report for {status_text}"
+
     return render_template(
         "admin_reports_loan_decisions.html",
         loans=loans,
-        from_date=from_date,
-        to_date=to_date,
-        selected_status=status,
         approved_count=approved_count,
         denied_count=denied_count,
-        pending_count=pending_count
+        pending_count=pending_count,
+        report_title=report_title,
+        date_text=date_text,
+        generated_at=generated_at
     )
     
 
