@@ -2760,14 +2760,14 @@ def inventory_report():
 
     selected_category = request.args.get("category", "")
     selected_appliance = request.args.get("appliance_name", "")
+    start_date = request.args.get("start_date", "")
+    end_date = request.args.get("end_date", "")
 
-    cur.execute("""
-        SELECT DISTINCT category 
-        FROM appliances 
-        ORDER BY category
-    """)
+    # Categories
+    cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category")
     categories = cur.fetchall()
 
+    # Base query
     base_sql = "SELECT * FROM appliances WHERE 1=1"
     params = []
 
@@ -2779,19 +2779,15 @@ def inventory_report():
         base_sql += " AND appliance_name = %s"
         params.append(selected_appliance)
 
+    # Optional date filter (if created_at exists)
+    if start_date and end_date:
+        base_sql += " AND DATE(created_at) BETWEEN %s AND %s"
+        params.extend([start_date, end_date])
+
     base_sql += " ORDER BY appliance_name"
 
     cur.execute(base_sql, params)
     appliances = cur.fetchall()
-
-    for a in appliances:
-        cur.execute("""
-            SELECT movement_date, movement_type, quantity, reference_note
-            FROM stock_movements
-            WHERE appliance_id = %s
-            ORDER BY movement_date DESC
-        """, (a["id"],))
-        a["movements"] = cur.fetchall()
 
     cur.close()
     conn.close()
@@ -2802,6 +2798,8 @@ def inventory_report():
         categories=categories,
         selected_category=selected_category,
         selected_appliance=selected_appliance,
+        start_date=start_date,
+        end_date=end_date,
         generated_at=datetime.now()
     )
 # =========================
