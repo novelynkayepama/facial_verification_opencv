@@ -3545,6 +3545,86 @@ def customer_ledger_user(user_id):
     except Exception as e:
         print("ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/customer/ledger/<int:loan_id>")
+def customer_ledger(loan_id):
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # ===== LOAN INFO =====
+    cur.execute("""
+        SELECT l.*, a.appliance_name
+        FROM loans l
+        JOIN appliances a ON l.appliance_id = a.id
+        WHERE l.id = %s
+    """, (loan_id,))
+    loan = cur.fetchone()
+
+    # ===== PAYMENTS =====
+    cur.execute("""
+        SELECT month_no, amount_due, paid_amount, due_date
+        FROM payments
+        WHERE loan_id = %s
+        ORDER BY month_no
+    """, (loan_id,))
+    payments = cur.fetchall()
+
+    # ===== CALCULATIONS =====
+    total_paid = sum(p["paid_amount"] or 0 for p in payments)
+    outstanding_balance = loan["amount"] - total_paid
+
+    running_balance = loan["amount"]
+
+    for p in payments:
+        paid = p["paid_amount"] or 0
+        p["balance"] = running_balance - paid
+        p["difference"] = paid - p["amount_due"]
+        running_balance = p["balance"]
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "customer_soa.html",
+        loan=loan,
+        payments=payments,
+        total_paid=total_paid,
+        outstanding_balance=outstanding_balance
+    )
+
+@app.route("/customer/ledger")
+def customer_ledger_list():
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+
+    conn = get_db_connection()
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    cur.execute("""
+        SELECT l.id, a.appliance_name, l.amount, l.months, l.applied_on
+        FROM loans l
+        JOIN appliances a ON l.appliance_id = a.id
+        WHERE l.user_id = %s AND l.status = 'Approved'
+        ORDER BY l.applied_on DESC
+    """, (user_id,))
+
+    loans = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template("customer_ledger_list.html", loans=loans)
+
+
+
 @app.route("/test_reminder")
 def test_reminder():
     auto_send_reminders()
