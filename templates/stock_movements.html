@@ -8,6 +8,7 @@ This report shows all stock changes for this appliance.
 "Stock In" means items were added, while "Stock Out" means items were sold or removed.
 </p>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
         body {
             background: #f4f6f9;
@@ -50,13 +51,35 @@ This report shows all stock changes for this appliance.
             margin-bottom: 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
+
+        /* ✅ ADDED: PRINT RULES */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+            }
+
+            .card {
+                box-shadow: none !important;
+                border: none !important;
+            }
+
+            table {
+                box-shadow: none !important;
+            }
+        }
     </style>
 </head>
+
 <body>
 
 <div class="container">
 
     <h1>📦 Stock Movement History</h1>
+
 <div class="summary-box">
 
     <h5>📊 Stock Summary</h5>
@@ -64,7 +87,6 @@ This report shows all stock changes for this appliance.
     <p><strong>Current Stock:</strong> {{ summary.current_stock }}</p>
 
     <p><strong>Total Stock In:</strong> {{ summary.total_in }}</p>
-
     <p><strong>Total Stock Out:</strong> {{ summary.total_out }}</p>
 
     <hr>
@@ -75,6 +97,7 @@ This report shows all stock changes for this appliance.
     </p>
 
 </div>
+
 <h6>
     Inventory Report:
     {% if start_date and end_date %}
@@ -83,10 +106,13 @@ This report shows all stock changes for this appliance.
         for all records
     {% endif %}
 </h6>
-<button onclick="printReport()" class="btn btn-primary mb-3">
+
+<!-- ✅ ADDED: safer print button -->
+<button onclick="printReport()" class="btn btn-primary mb-3 no-print">
     🖨 Print Report
 </button>
 
+<!-- PRINT SCRIPT (clean version) -->
 <script>
 function printReport() {
     let monthText = "";
@@ -103,13 +129,18 @@ function printReport() {
 
     const header = document.createElement("h4");
     header.innerText = monthText;
+    header.classList.add("text-center");
 
     document.body.prepend(header);
+
     window.print();
+
     header.remove();
 }
 </script>
-<form method="GET" class="mb-3 d-flex gap-2">
+
+<!-- FILTER (NO CHANGE EXCEPT no-print ADDED) -->
+<form method="GET" class="mb-3 d-flex gap-2 no-print">
 
     <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
 
@@ -120,46 +151,54 @@ function printReport() {
     <a href="" class="btn btn-secondary">Reset</a>
 
 </form>
-    <div class="card p-4">
 
-        <div class="table-responsive">
-            <table class="table table-hover align-middle text-center">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                       
-                       <th>Action</th>
-                        <th>Number of Items</th>
-                        <th>Reference</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for m in movements %}
-                    <tr>
-                        <tr class="{% if m.movement_type == 'stock_out' %}table-danger{% else %}table-success{% endif %}"></tr>
-                        <td>{{ m.movement_date.strftime("%B %d, %Y %I:%M %p") }}</td>
-                       
-                        <td>
-                            {% if m.movement_type == 'stock_in' %}
-                                <span class="badge badge-in">Items Added</span>
-                            {% else %}
-                                <span class="badge badge-out">Stock Out</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ m.quantity }}</td>
-                        <td>{{ m.reference_note }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="card p-4">
 
+    <div class="table-responsive">
+        <table class="table table-hover align-middle text-center">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Action</th>
+                    <th>Number of Items</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for m in movements %}
+
+                <!-- ✅ FIXED: removed broken nested <tr> -->
+                <tr class="{% if m.movement_type == 'stock_out' %}table-danger{% else %}table-success{% endif %}">
+
+                    <td>{{ m.movement_date.strftime("%B %d, %Y %I:%M %p") }}</td>
+
+                    <td>
+                        {% if m.movement_type == 'stock_in' %}
+                            <span class="badge badge-in">Items Added</span>
+                        {% else %}
+                            <span class="badge badge-out">Stock Out</span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ m.quantity }}</td>
+                    <td>{{ m.reference_note }}</td>
+                </tr>
+
+                {% endfor %}
+            </tbody>
+
+        </table>
     </div>
 
-    <br>
-    <a href="{{ url_for('admin_appliances') }}" class="btn btn-secondary">
-        ← Back to Appliances
-    </a>
+</div>
+
+<br>
+
+<!-- ADDED no-print -->
+<a href="{{ url_for('admin_appliances') }}" class="btn btn-secondary no-print">
+    ← Back to Appliances
+</a>
 
 </div>
 
