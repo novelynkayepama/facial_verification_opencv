@@ -89,10 +89,15 @@ def test_db():
 
 @app.route("/admin/appliances")
 def admin_appliances():
+
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    cur.execute("""
+    # ================= SEARCH FILTERS =================
+    category = request.args.get("category", "")
+    appliance_name = request.args.get("appliance_name", "")
+
+    query = """
         SELECT 
             a.*,
 
@@ -109,14 +114,33 @@ def admin_appliances():
             ), 0) AS items_sold
 
         FROM appliances a
-    """)
+        WHERE 1=1
+    """
 
+    params = []
+
+    # ================= CATEGORY FILTER =================
+    if category:
+        query += " AND a.category LIKE %s"
+        params.append(f"%{category}%")
+
+    # ================= APPLIANCE NAME FILTER =================
+    if appliance_name:
+        query += " AND a.appliance_name LIKE %s"
+        params.append(f"%{appliance_name}%")
+
+    query += " ORDER BY a.appliance_name"
+
+    cur.execute(query, params)
     appliances = cur.fetchall()
 
     cur.close()
     conn.close()
 
-    return render_template("admin_appliances.html", appliances=appliances)
+    return render_template(
+        "admin_appliances.html",
+        appliances=appliances
+    )
 
     
 @app.route("/")
@@ -2758,36 +2782,50 @@ def inventory_report():
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
+    # ================= FILTER VALUES =================
     selected_category = request.args.get("category", "")
     selected_appliance = request.args.get("appliance_name", "")
     start_date = request.args.get("start_date", "")
     end_date = request.args.get("end_date", "")
 
-    # Categories
+    # ================= CATEGORY LIST =================
     cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category")
     categories = cur.fetchall()
 
-    # Base query
-    base_sql = "SELECT * FROM appliances WHERE 1=1"
+    # ================= MAIN QUERY =================
+    query = "SELECT * FROM appliances WHERE 1=1"
     params = []
 
     if selected_category:
-        base_sql += " AND category = %s"
+        query += " AND category = %s"
         params.append(selected_category)
 
     if selected_appliance:
-        base_sql += " AND appliance_name = %s"
+        query += " AND appliance_name = %s"
         params.append(selected_appliance)
 
-    # Optional date filter (if created_at exists)
-    if start_date and end_date:
-        base_sql += " AND DATE(created_at) BETWEEN %s AND %s"
-        params.extend([start_date, end_date])
+    query += " ORDER BY appliance_name"
 
-    base_sql += " ORDER BY appliance_name"
-
-    cur.execute(base_sql, params)
+    cur.execute(query, params)
     appliances = cur.fetchall()
+
+    # ================= PRINT LABEL =================
+    from datetime import datetime
+
+    print_label = "Full Inventory Overview"
+
+    if start_date and end_date:
+        s = datetime.strptime(start_date, "%Y-%m-%d")
+        e = datetime.strptime(end_date, "%Y-%m-%d")
+        print_label = f"Inventory Report from {s.strftime('%b %d, %Y')} to {e.strftime('%b %d, %Y')}"
+
+    elif start_date:
+        s = datetime.strptime(start_date, "%Y-%m-%d")
+        print_label = f"Inventory Report starting {s.strftime('%b %d, %Y')}"
+
+    elif end_date:
+        e = datetime.strptime(end_date, "%Y-%m-%d")
+        print_label = f"Inventory Report until {e.strftime('%b %d, %Y')}"
 
     cur.close()
     conn.close()
@@ -2800,7 +2838,7 @@ def inventory_report():
         selected_appliance=selected_appliance,
         start_date=start_date,
         end_date=end_date,
-        generated_at=datetime.now()
+        print_label=print_label
     )
 # =========================
 # MONTHLY SALES REPORT

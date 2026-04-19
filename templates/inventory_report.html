@@ -14,7 +14,7 @@ body {
     color: #111827;
 }
 
-/* ================= HEADER (UNCHANGED STYLE PRESERVED) ================= */
+/* HEADER */
 .company-header {
     background: linear-gradient(135deg, #0ea5e9, #1e3a8a);
     border-radius: 15px;
@@ -34,7 +34,6 @@ body {
 
 .company-name {
     font-weight: 700;
-    letter-spacing: 1px;
     font-size: 1.1rem;
 }
 
@@ -43,11 +42,7 @@ body {
     opacity: 0.9;
 }
 
-.system-title {
-    font-weight: 600;
-}
-
-/* ================= REPORT TITLE ================= */
+/* TITLE */
 .report-title {
     text-align: center;
     margin: 15px 0;
@@ -58,11 +53,7 @@ body {
     color: #0ea5e9;
 }
 
-.report-title p {
-    color: #6b7280;
-}
-
-/* ================= FILTER BOX ================= */
+/* FILTER */
 .filter-box {
     background: white;
     padding: 15px;
@@ -71,7 +62,7 @@ body {
     margin-bottom: 20px;
 }
 
-/* ================= TABLE ================= */
+/* TABLE */
 table {
     background: white;
     border-radius: 10px;
@@ -82,8 +73,8 @@ table {
 th {
     background: linear-gradient(90deg, #0ea5e9, #0284c7);
     color: white;
-    text-transform: uppercase;
     font-size: 13px;
+    text-transform: uppercase;
 }
 
 td {
@@ -94,60 +85,48 @@ td {
 .stock-low { color: #f59e0b; font-weight: bold; }
 .stock-zero { color: #ef4444; font-weight: bold; }
 
-/* ================= PRINT ================= */
+/* PRINT */
 .no-print {
     display: block;
 }
 
 @media print {
-    .no-print {
-        display: none !important;
-    }
-
-    body {
-        background: white !important;
-    }
-
-    table {
-        box-shadow: none !important;
-    }
+    .no-print { display: none !important; }
+    body { background: white !important; }
+    table { box-shadow: none !important; }
 }
 </style>
 </head>
 
 <body>
 
-<!-- ================= COMPANY HEADER (UNCHANGED AS YOU REQUESTED) ================= -->
+<!-- HEADER -->
 <div class="company-header d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-3">
-        <img src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Company Logo" class="company-logo">
+        <img src="{{ url_for('static', filename='uploads/logo.png') }}" class="company-logo">
         <div>
             <h4 class="company-name mb-0">GREATER RJ APPLIANCE</h4>
             <small class="company-sub">AND TRADING CORPORATION</small>
         </div>
     </div>
+
     <div class="text-end">
-        <h6 class="system-title mb-0">Inventory Management System</h6>
-        <small class="text-muted">Installment-Based Monitoring Platform</small>
+        <h6 class="mb-0">Inventory Management System</h6>
+        <small class="text-muted">Installment-Based Monitoring</small>
     </div>
+
     <button class="btn btn-primary no-print" onclick="window.print()">
         <i class="fa-solid fa-print"></i> Print Report
     </button>
 </div>
 
-<!-- ================= REPORT TITLE ================= -->
+<!-- TITLE -->
 <div class="report-title">
     <h2>INVENTORY REPORT</h2>
-    <p>
-        {% if start_date and end_date %}
-            From {{ start_date }} to {{ end_date }}
-        {% else %}
-            Full Inventory Overview
-        {% endif %}
-    </p>
+    <p>{{ print_label }}</p>
 </div>
 
-<!-- ================= FILTER ================= -->
+<!-- FILTER -->
 <form method="GET" class="filter-box d-flex flex-wrap gap-2 no-print">
 
     <select name="category" class="form-control">
@@ -159,20 +138,22 @@ td {
         {% endfor %}
     </select>
 
-    <input type="text" name="appliance_name" class="form-control" placeholder="Appliance Name"
+    <input type="text" name="appliance_name" class="form-control"
+        placeholder="Appliance Name"
         value="{{ selected_appliance }}">
 
     <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
     <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
 
     <button class="btn btn-primary">Filter</button>
-    <a href="" class="btn btn-secondary">Reset</a>
+
+    <!-- RESET FIXED -->
+    <a href="{{ url_for('inventory_report') }}" class="btn btn-secondary">Reset</a>
 
 </form>
 
-<!-- ================= TABLE ================= -->
+<!-- TABLE -->
 <div class="table-responsive">
-
 <table class="table table-bordered text-center align-middle">
 
     <thead>
@@ -180,7 +161,7 @@ td {
             <th>Appliance Name</th>
             <th>Category</th>
             <th>Price</th>
-            <th>Available Stocks</th>
+            <th>Available Stock</th>
         </tr>
     </thead>
 
@@ -205,7 +186,6 @@ td {
     </tbody>
 
 </table>
-
 </div>
 
 </body>

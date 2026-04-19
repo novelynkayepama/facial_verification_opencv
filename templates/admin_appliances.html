@@ -6,6 +6,35 @@
     <p style="margin-bottom:15px;">
 This report shows all appliances, available stock, and whether items need restocking.
 </p>
+<form method="GET" style="background:white; padding:15px; border-radius:10px; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+
+        <!-- Category Search -->
+        <input type="text" name="category" placeholder="Search Category"
+            value="{{ request.args.get('category','') }}"
+            style="padding:10px; border:1px solid #ccc; border-radius:8px; flex:1;">
+
+        <!-- Appliance Name Search -->
+        <input type="text" name="appliance_name" placeholder="Search Appliance Name"
+            value="{{ request.args.get('appliance_name','') }}"
+            style="padding:10px; border:1px solid #ccc; border-radius:8px; flex:1;">
+
+        <!-- Search Button -->
+        <button type="submit"
+            style="background:#0ea5e9; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;">
+            🔍 Search
+        </button>
+
+        <!-- Reset -->
+        <a href="{{ url_for('admin_appliances') }}"
+            style="background:#475569; color:white; padding:10px 15px; border-radius:8px; text-decoration:none;">
+            Reset
+        </a>
+
+    </div>
+
+</form>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
