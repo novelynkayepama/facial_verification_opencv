@@ -93,7 +93,7 @@ def admin_appliances():
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # ================= SEARCH FILTERS =================
+    # ================= FILTERS =================
     category = request.args.get("category", "")
     appliance_name = request.args.get("appliance_name", "")
 
@@ -124,7 +124,7 @@ def admin_appliances():
         query += " AND a.category LIKE %s"
         params.append(f"%{category}%")
 
-    # ================= APPLIANCE NAME FILTER =================
+    # ================= APPLIANCE FILTER =================
     if appliance_name:
         query += " AND a.appliance_name LIKE %s"
         params.append(f"%{appliance_name}%")
@@ -134,12 +134,33 @@ def admin_appliances():
     cur.execute(query, params)
     appliances = cur.fetchall()
 
+    # ================= GET CATEGORY LIST =================
+    cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category")
+    categories = cur.fetchall()
+
+    # ================= GET APPLIANCE LIST =================
+    appliance_query = "SELECT DISTINCT appliance_name FROM appliances WHERE 1=1"
+    appliance_params = []
+
+    if category:
+        appliance_query += " AND category LIKE %s"
+        appliance_params.append(f"%{category}%")
+
+    appliance_query += " ORDER BY appliance_name"
+
+    cur.execute(appliance_query, appliance_params)
+    appliance_list = cur.fetchall()
+
     cur.close()
     conn.close()
 
     return render_template(
         "admin_appliances.html",
-        appliances=appliances
+        appliances=appliances,
+        categories=categories,
+        appliance_list=appliance_list,
+        selected_category=category,
+        selected_appliance=appliance_name
     )
 
     

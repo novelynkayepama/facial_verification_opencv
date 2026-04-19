@@ -10,23 +10,43 @@ This report shows all appliances, available stock, and whether items need restoc
 
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
 
-        <!-- Category Search -->
-        <input type="text" name="category" placeholder="Search Category"
-            value="{{ request.args.get('category','') }}"
+        <!-- CATEGORY DROPDOWN (FIXED) -->
+        <select name="category"
             style="padding:10px; border:1px solid #ccc; border-radius:8px; flex:1;">
 
-        <!-- Appliance Name Search -->
-        <input type="text" name="appliance_name" placeholder="Search Appliance Name"
-            value="{{ request.args.get('appliance_name','') }}"
+            <option value="">All Categories</option>
+
+            {% for c in categories %}
+                <option value="{{ c.category }}"
+                    {% if selected_category == c.category %}selected{% endif %}>
+                    {{ c.category }}
+                </option>
+            {% endfor %}
+
+        </select>
+
+        <!-- APPLIANCE NAME DROPDOWN (FILTERED BY CATEGORY) -->
+        <select name="appliance_name"
             style="padding:10px; border:1px solid #ccc; border-radius:8px; flex:1;">
 
-        <!-- Search Button -->
+            <option value="">All Appliances</option>
+
+            {% for a in appliance_list %}
+                <option value="{{ a.appliance_name }}"
+                    {% if selected_appliance == a.appliance_name %}selected{% endif %}>
+                    {{ a.appliance_name }}
+                </option>
+            {% endfor %}
+
+        </select>
+
+        <!-- SEARCH BUTTON -->
         <button type="submit"
             style="background:#0ea5e9; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;">
             🔍 Search
         </button>
 
-        <!-- Reset -->
+        <!-- RESET -->
         <a href="{{ url_for('admin_appliances') }}"
             style="background:#475569; color:white; padding:10px 15px; border-radius:8px; text-decoration:none;">
             Reset
