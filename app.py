@@ -3548,7 +3548,7 @@ def customer_ledger_user(user_id):
 
 
 @app.route("/customer/ledger/<int:loan_id>")
-def customer_ledger(loan_id):
+def customer_ledger_view(loan_id):
 
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -3561,16 +3561,19 @@ def customer_ledger(loan_id):
         SELECT l.*, a.appliance_name
         FROM loans l
         JOIN appliances a ON l.appliance_id = a.id
-        WHERE l.id = %s
-    """, (loan_id,))
+        WHERE l.id = %s AND l.user_id = %s
+    """, (loan_id, session["user_id"]))
     loan = cur.fetchone()
+
+    if not loan:
+        return "Unauthorized", 403
 
     # ===== PAYMENTS =====
     cur.execute("""
-        SELECT month_no, amount_due, paid_amount, due_date
+        SELECT *
         FROM payments
         WHERE loan_id = %s
-        ORDER BY month_no
+        ORDER BY month_no ASC
     """, (loan_id,))
     payments = cur.fetchall()
 
@@ -3582,9 +3585,13 @@ def customer_ledger(loan_id):
 
     for p in payments:
         paid = p["paid_amount"] or 0
-        p["balance"] = running_balance - paid
-        p["difference"] = paid - p["amount_due"]
-        running_balance = p["balance"]
+        due = p["amount_due"] or 0
+
+        p["difference"] = paid - due
+        p["arrears_display"] = p["arrears"] if p["arrears"] else 0
+
+        running_balance -= paid
+        p["balance"] = running_balance
 
     cur.close()
     conn.close()
