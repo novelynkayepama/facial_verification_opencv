@@ -1748,7 +1748,11 @@ def approve_loan(loan_id):
 
         # ---------------- 4. UPDATE STOCK ----------------
         quantity = 1
-        new_stock = appliance['stock'] - quantity
+        cur.execute("""
+        UPDATE appliances
+        SET stock = stock - %s
+        WHERE id = %s
+        """, (quantity, loan['appliance_id']))
 
         cur.execute("""
             UPDATE appliances
@@ -1757,12 +1761,14 @@ def approve_loan(loan_id):
         """, (new_stock, loan['appliance_id']))
 
         # ---------------- 5. STOCK MOVEMENT ----------------
+        # ---------------- 5. STOCK MOVEMENT ----------------
         cur.execute("""
             INSERT INTO stock_movements
             (appliance_id, movement_type, quantity, reference_note, movement_date)
-            VALUES (%s, 'OUT', %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, NOW())
         """, (
             loan['appliance_id'],
+            'stock_out',   # ✅ FIXED
             quantity,
             f"Loan Approved (Loan ID: {loan_id})"
         ))
