@@ -2692,36 +2692,50 @@ def customer_payments():
 @app.route("/admin/stock_movements/<int:appliance_id>")
 def appliance_stock_movements(appliance_id):
 
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Movements list
-    cur.execute("""
+    # ---------------- MOVEMENTS ----------------
+    query = """
         SELECT sm.*, a.appliance_name, a.stock
         FROM stock_movements sm
         JOIN appliances a ON sm.appliance_id = a.id
         WHERE sm.appliance_id = %s
-        ORDER BY sm.movement_date DESC
-    """, (appliance_id,))
+    """
 
+    params = [appliance_id]
+
+    if start_date and end_date:
+        query += " AND DATE(sm.movement_date) BETWEEN %s AND %s"
+        params.extend([start_date, end_date])
+
+    query += " ORDER BY sm.movement_date DESC"
+
+    cur.execute(query, params)
     movements = cur.fetchall()
 
-    # Summary FIXED
-    cur.execute("""
+    # ---------------- SUMMARY ----------------
+    summary_query = """
     SELECT 
         a.appliance_name,
         a.stock AS current_stock,
-
-        COALESCE(SUM(CASE WHEN sm.movement_type='stock_in' THEN sm.quantity ELSE 0 END), 0) AS total_in,
-
-        COALESCE(SUM(CASE WHEN sm.movement_type='stock_out' THEN sm.quantity ELSE 0 END), 0) AS total_out
-
+        COALESCE(SUM(CASE WHEN sm.movement_type='stock_in' THEN sm.quantity ELSE 0 END),0) AS total_in,
+        COALESCE(SUM(CASE WHEN sm.movement_type='stock_out' THEN sm.quantity ELSE 0 END),0) AS total_out
     FROM appliances a
     LEFT JOIN stock_movements sm ON a.id = sm.appliance_id
     WHERE a.id = %s
-    GROUP BY a.id
-    """, (appliance_id,))
+    """
 
+    if start_date and end_date:
+        summary_query += " AND DATE(sm.movement_date) BETWEEN %s AND %s"
+        summary_params = [appliance_id, start_date, end_date]
+    else:
+        summary_params = [appliance_id]
+
+    cur.execute(summary_query, summary_params)
     summary = cur.fetchone()
 
     cur.close()
@@ -2730,9 +2744,10 @@ def appliance_stock_movements(appliance_id):
     return render_template(
         "stock_movements.html",
         movements=movements,
-        summary=summary
+        summary=summary,
+        start_date=start_date,
+        end_date=end_date
     )
-
 
 # =========================
 # INVENTORY REPORT

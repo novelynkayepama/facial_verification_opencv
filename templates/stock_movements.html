@@ -2,7 +2,7 @@
 <html>
 <head>
     
-    <title>Stock Movement History</title>
+    <title>INVENTORY</title>
     <p style="margin-bottom:15px;">
 This report shows all stock changes for this appliance. 
 "Stock In" means items were added, while "Stock Out" means items were sold or removed.
@@ -60,7 +60,7 @@ This report shows all stock changes for this appliance.
 <div class="summary-box">
 
     <h5>📊 Stock Summary</h5>
-
+    <p><strong>Appliance Name:</strong> {{ summary.appliance_name }}</p>
     <p><strong>Current Stock:</strong> {{ summary.current_stock }}</p>
 
     <p><strong>Total Stock In:</strong> {{ summary.total_in }}</p>
@@ -75,9 +75,51 @@ This report shows all stock changes for this appliance.
     </p>
 
 </div>
-<button onclick="window.print()" class="btn btn-primary mb-3">
+<h6>
+    Inventory Report:
+    {% if start_date and end_date %}
+        from {{ start_date }} to {{ end_date }}
+    {% else %}
+        for all records
+    {% endif %}
+</h6>
+<button onclick="printReport()" class="btn btn-primary mb-3">
     🖨 Print Report
 </button>
+
+<script>
+function printReport() {
+    let monthText = "";
+
+    const start = "{{ start_date }}";
+    const end = "{{ end_date }}";
+
+    if (start && end) {
+        monthText = `This is the inventory report from ${start} to ${end}`;
+    } else {
+        const d = new Date();
+        monthText = `This is the inventory report for ${d.toLocaleString('default', { month: 'long' })} ${d.getFullYear()}`;
+    }
+
+    const header = document.createElement("h4");
+    header.innerText = monthText;
+
+    document.body.prepend(header);
+    window.print();
+    header.remove();
+}
+</script>
+<form method="GET" class="mb-3 d-flex gap-2">
+
+    <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
+
+    <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
+
+    <button class="btn btn-primary">Filter</button>
+
+    <a href="" class="btn btn-secondary">Reset</a>
+
+</form>
     <div class="card p-4">
 
         <div class="table-responsive">
