@@ -2792,7 +2792,20 @@ def inventory_report():
     cur.execute("SELECT DISTINCT category FROM appliances ORDER BY category")
     categories = cur.fetchall()
 
-    # ================= MAIN QUERY =================
+    # ================= APPLIANCE LIST (DEPENDENT DROPDOWN FIX) =================
+    appliance_query = "SELECT DISTINCT appliance_name FROM appliances WHERE 1=1"
+    appliance_params = []
+
+    if selected_category:
+        appliance_query += " AND category = %s"
+        appliance_params.append(selected_category)
+
+    appliance_query += " ORDER BY appliance_name"
+
+    cur.execute(appliance_query, appliance_params)
+    appliance_list = cur.fetchall()
+
+    # ================= MAIN INVENTORY QUERY =================
     query = "SELECT * FROM appliances WHERE 1=1"
     params = []
 
@@ -2821,11 +2834,11 @@ def inventory_report():
 
     elif start_date:
         s = datetime.strptime(start_date, "%Y-%m-%d")
-        print_label = f"Inventory Report starting {s.strftime('%b %d, %Y')}"
+        print_label = f"Inventory starting {s.strftime('%b %d, %Y')}"
 
     elif end_date:
         e = datetime.strptime(end_date, "%Y-%m-%d")
-        print_label = f"Inventory Report until {e.strftime('%b %d, %Y')}"
+        print_label = f"Inventory until {e.strftime('%b %d, %Y')}"
 
     cur.close()
     conn.close()
@@ -2834,6 +2847,7 @@ def inventory_report():
         "inventory_report.html",
         appliances=appliances,
         categories=categories,
+        appliance_list=appliance_list,
         selected_category=selected_category,
         selected_appliance=selected_appliance,
         start_date=start_date,
