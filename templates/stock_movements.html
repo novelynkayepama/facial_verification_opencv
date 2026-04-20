@@ -1,24 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-    
     <title>INVENTORY</title>
-    <p style="margin-bottom:15px;">
-This report shows all stock changes for this appliance. 
-"Stock In" means items were added, while "Stock Out" means items were sold or removed.
-</p>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         body {
-            background: #f4f6f9;
+            background: linear-gradient(to right, #eef2ff, #f8fafc);
             padding: 30px;
             font-family: 'Segoe UI', sans-serif;
         }
 
+        /* HEADER */
+        .page-header {
+            margin-bottom: 20px;
+        }
+
+        .page-title {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .page-desc {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        /* SUMMARY GRID */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        }
+
+        .summary-title {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .summary-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        /* TABLE */
         .card {
             border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            border: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         }
 
         .table thead {
@@ -26,33 +65,36 @@ This report shows all stock changes for this appliance.
             color: white;
         }
 
+        .table tbody tr:hover {
+            background: #f1f5f9;
+        }
+
+        /* BADGES */
         .badge-in {
             background-color: #22c55e;
             padding: 6px 10px;
             border-radius: 8px;
+            color: white;
         }
 
         .badge-out {
             background-color: #ef4444;
             padding: 6px 10px;
             border-radius: 8px;
+            color: white;
         }
 
-        h1 {
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: #0f172a;
+        /* BUTTON */
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            border: none;
         }
 
-        .summary-box {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
         }
 
-        /* ✅ ADDED: PRINT RULES */
+        /* PRINT */
         @media print {
             .no-print {
                 display: none !important;
@@ -62,13 +104,9 @@ This report shows all stock changes for this appliance.
                 background: white !important;
             }
 
-            .card {
+            .card, .summary-card {
                 box-shadow: none !important;
                 border: none !important;
-            }
-
-            table {
-                box-shadow: none !important;
             }
         }
     </style>
@@ -78,41 +116,124 @@ This report shows all stock changes for this appliance.
 
 <div class="container">
 
-    <h1>📦 Stock Movement History</h1>
+    <!-- HEADER -->
+    <div class="page-header">
+        <h1 class="page-title">📦 Stock Movement History</h1>
+        <p class="page-desc">
+            This report shows all stock changes for this appliance.
+            <strong>Stock In</strong> means items were added, while 
+            <strong>Stock Out</strong> means items were sold or removed.
+        </p>
+    </div>
 
-<div class="summary-box">
+    <!-- SUMMARY -->
+    <div class="summary-grid">
 
-    <h5>📊 Stock Summary</h5>
-    <p><strong>Appliance Name:</strong> {{ summary.appliance_name }}</p>
-    <p><strong>Current Stock:</strong> {{ summary.current_stock }}</p>
+        <div class="summary-card">
+            <div class="summary-title">Appliance</div>
+            <div class="summary-value">{{ summary.appliance_name }}</div>
+        </div>
 
-    <p><strong>Total Stock In:</strong> {{ summary.total_in }}</p>
-    <p><strong>Total Stock Out:</strong> {{ summary.total_out }}</p>
+        <div class="summary-card">
+            <div class="summary-title">Current Stock</div>
+            <div class="summary-value">{{ summary.current_stock }}</div>
+        </div>
 
-    <hr>
+        <div class="summary-card">
+            <div class="summary-title">Total Stock In</div>
+            <div class="summary-value text-success">{{ summary.total_in }}</div>
+        </div>
 
-    <p>
-        <strong>Net Movement:</strong> 
-        {{ summary.total_in - summary.total_out }}
-    </p>
+        <div class="summary-card">
+            <div class="summary-title">Total Stock Out</div>
+            <div class="summary-value text-danger">{{ summary.total_out }}</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-title">Net Movement</div>
+            <div class="summary-value">
+                {{ summary.total_in - summary.total_out }}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- DATE RANGE -->
+    <h6>
+        Inventory Report:
+        {% if start_date and end_date %}
+            from {{ start_date }} to {{ end_date }}
+        {% else %}
+            for all records
+        {% endif %}
+    </h6>
+
+    <!-- PRINT BUTTON -->
+    <button onclick="printReport()" class="btn btn-primary mb-3 no-print">
+        🖨 Print Report
+    </button>
+
+    <!-- FILTER -->
+    <form method="GET" class="mb-3 d-flex gap-2 no-print">
+
+        <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
+        <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
+
+        <button class="btn btn-primary">Filter</button>
+        <a href="" class="btn btn-secondary">Reset</a>
+
+    </form>
+
+    <!-- TABLE -->
+    <div class="card p-4">
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Action</th>
+                        <th>Number of Items</th>
+                        <th>Reference</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for m in movements %}
+                    <tr class="{% if m.movement_type == 'stock_out' %}table-danger{% else %}table-success{% endif %}">
+
+                        <td>{{ m.movement_date.strftime("%B %d, %Y %I:%M %p") }}</td>
+
+                        <td>
+                            {% if m.movement_type == 'stock_in' %}
+                                <span class="badge badge-in">Items Added</span>
+                            {% else %}
+                                <span class="badge badge-out">Stock Out</span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ m.quantity }}</td>
+                        <td>{{ m.reference_note }}</td>
+
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+    <br>
+
+    <!-- BACK BUTTON -->
+    <a href="{{ url_for('admin_appliances') }}" class="btn btn-secondary no-print">
+        ← Back to Appliances
+    </a>
 
 </div>
 
-<h6>
-    Inventory Report:
-    {% if start_date and end_date %}
-        from {{ start_date }} to {{ end_date }}
-    {% else %}
-        for all records
-    {% endif %}
-</h6>
-
-<!-- ✅ ADDED: safer print button -->
-<button onclick="printReport()" class="btn btn-primary mb-3 no-print">
-    🖨 Print Report
-</button>
-
-<!-- PRINT SCRIPT (clean version) -->
+<!-- PRINT SCRIPT -->
 <script>
 function printReport() {
     let monthText = "";
@@ -138,69 +259,6 @@ function printReport() {
     header.remove();
 }
 </script>
-
-<!-- FILTER (NO CHANGE EXCEPT no-print ADDED) -->
-<form method="GET" class="mb-3 d-flex gap-2 no-print">
-
-    <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
-
-    <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
-
-    <button class="btn btn-primary">Filter</button>
-
-    <a href="" class="btn btn-secondary">Reset</a>
-
-</form>
-
-<div class="card p-4">
-
-    <div class="table-responsive">
-        <table class="table table-hover align-middle text-center">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Action</th>
-                    <th>Number of Items</th>
-                    <th>Reference</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for m in movements %}
-
-                <!-- ✅ FIXED: removed broken nested <tr> -->
-                <tr class="{% if m.movement_type == 'stock_out' %}table-danger{% else %}table-success{% endif %}">
-
-                    <td>{{ m.movement_date.strftime("%B %d, %Y %I:%M %p") }}</td>
-
-                    <td>
-                        {% if m.movement_type == 'stock_in' %}
-                            <span class="badge badge-in">Items Added</span>
-                        {% else %}
-                            <span class="badge badge-out">Stock Out</span>
-                        {% endif %}
-                    </td>
-
-                    <td>{{ m.quantity }}</td>
-                    <td>{{ m.reference_note }}</td>
-                </tr>
-
-                {% endfor %}
-            </tbody>
-
-        </table>
-    </div>
-
-</div>
-
-<br>
-
-<!-- ADDED no-print -->
-<a href="{{ url_for('admin_appliances') }}" class="btn btn-secondary no-print">
-    ← Back to Appliances
-</a>
-
-</div>
 
 </body>
 </html>
