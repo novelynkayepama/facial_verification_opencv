@@ -3633,7 +3633,8 @@ def customer_ledger_view(loan_id):
         loan=loan,
         payments=payments,
         total_paid=total_paid,
-        outstanding_balance=outstanding_balance
+        outstanding_balance=outstanding_balance,
+        relativedelta=relativedelta   # ✅ ADD THIS
     )
 
 @app.route("/customer/ledger")
