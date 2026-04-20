@@ -3560,7 +3560,7 @@ def customer_ledger_user(user_id):
 
 from flask import render_template, session, redirect, url_for
 from dateutil.relativedelta import relativedelta
-from datetime import date
+from datetime import datetime
 import MySQLdb
 
 
@@ -3596,34 +3596,40 @@ def customer_ledger_view(loan_id):
     """, (loan_id,))
     payments = cur.fetchall()
 
-    # ================= CALCULATIONS =================
+    # ================= TOTALS =================
     total_paid = sum(p["paid_amount"] or 0 for p in payments)
     outstanding_balance = loan["amount"] - total_paid
 
     running_balance = loan["amount"]
 
-    # ================= MONTH NAME GENERATION =================
-    start_date = loan["applied_on"].replace(day=1)
+    # ================= DATE BASE =================
+    loan_date = loan["applied_on"]
 
+    # Month 1 = +1 month from approval
+    start_date = loan_date + relativedelta(months=1)
+
+    # Term end = +1 year from approval
+    term_end = loan_date + relativedelta(years=1)
+
+    # ================= PROCESS PAYMENTS =================
     for p in payments:
         paid = p["paid_amount"] or 0
         due = p["amount_due"] or 0
 
-        # Running balance
+        # running balance
         p["balance"] = running_balance - paid
         running_balance = p["balance"]
 
-        # Difference / arrears logic
+        # arrears / overpayment
         p["difference"] = paid - due
+        p["arrears"] = due - paid if paid < due else 0
 
-        if paid < due:
-            p["arrears"] = due - paid
-        else:
-            p["arrears"] = 0
-
-        # ✅ MONTH NAME (FIXED HERE — NO JINJA ERROR ANYMORE)
+        # ================= MONTH NAME (FIXED LOGIC) =================
         month_date = start_date + relativedelta(months=p["month_no"] - 1)
-        p["month_name"] = month_date.strftime("%B %Y")
+        p["month_name"] = month_date.strftime("%B %d, %Y")
+
+        # for modal safety (if missing)
+        p["id"] = p.get("id")
 
     cur.close()
     conn.close()
@@ -3634,6 +3640,8 @@ def customer_ledger_view(loan_id):
         payments=payments,
         total_paid=total_paid,
         outstanding_balance=outstanding_balance,
+        start_date=start_date,
+        term_end=term_end
         relativedelta=relativedelta   # ✅ ADD THIS
     )
 
