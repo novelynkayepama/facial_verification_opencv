@@ -7,72 +7,123 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-<style>
-body {
+<style>body {
     font-family: 'Segoe UI', sans-serif;
-    background: #f1f5f9;
+    background: linear-gradient(to right, #eef2ff, #f8fafc);
     padding: 25px;
 }
 
+/* MAIN CARD */
 .ledger-box {
     background: white;
-    padding: 25px;
-    border-radius: 14px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.08);
 }
 
+/* HEADER */
 .header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 20px;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
 }
 
-.header-left p {
-    margin: 4px 0;
+.header-card {
+    flex: 1;
+    min-width: 250px;
+    background: #f8fafc;
+    padding: 18px;
+    border-radius: 12px;
+    border-left: 5px solid #0ea5e9;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.header-card p {
+    margin: 6px 0;
     font-size: 14px;
 }
 
+.header-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: #0284c7;
+    margin-bottom: 8px;
+}
+
+/* HIGHLIGHT BOX */
+.highlight {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    color: white;
+    border-left: none;
+}
+
+.highlight p {
+    font-size: 15px;
+}
+
+.highlight strong {
+    display: block;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.highlight .value {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* BUTTON */
 .pay-btn {
     margin-top: 15px;
     background: #0ea5e9;
     color: white;
     border: none;
-    padding: 10px 18px;
+    padding: 8px 16px;
     border-radius: 8px;
     cursor: pointer;
+    transition: 0.3s;
 }
 
 .pay-btn:hover {
     background: #0284c7;
+    transform: scale(1.05);
 }
 
+/* TABLE */
 table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
+    overflow: hidden;
+    border-radius: 10px;
 }
 
 th {
-    background: #0ea5e9;
+    background: linear-gradient(to right, #0ea5e9, #0284c7);
     color: white;
-    padding: 10px;
+    padding: 12px;
     font-size: 13px;
 }
 
 td {
-    padding: 10px;
+    padding: 12px;
     text-align: center;
     border-bottom: 1px solid #e5e7eb;
     font-size: 14px;
 }
 
-.green { color: green; }
-.red { color: red; }
-.orange { color: orange; }
+tr:hover {
+    background: #f1f5f9;
+}
 
-.modal-step { display: none; }
-.modal-step.active { display: block; }
+/* STATUS COLORS */
+.green { color: #16a34a; font-weight: 500; }
+.red { color: #dc2626; font-weight: 500; }
+.orange { color: #f59e0b; font-weight: 500; }
 
+/* MODAL */
 .step-header {
     font-weight: 600;
     margin-bottom: 10px;
@@ -84,6 +135,7 @@ td {
     border-radius: 10px;
 }
 
+/* PRINT */
 @media print {
     .no-print { display: none; }
     body { background: white; }
@@ -98,23 +150,25 @@ td {
 <!-- ===== TOP INFO ===== -->
 <div class="header">
 
-    <div class="header-left">
-
-        <!-- Appliance Name -->
-        <p><strong>Item Name:</strong> {{ loan.appliance_name }}</p>
-
-        <!-- Date Granted (SAFE) -->
+    <!-- LEFT INFO -->
+    <div class="header-card">
+        <div class="header-title">Loan Details</div>
+        <p><strong>Item:</strong> {{ loan.appliance_name }}</p>
         <p><strong>Date Granted:</strong> {{ loan.applied_on.strftime("%B %d, %Y %I:%M %p") }}</p>
-
-        <!-- TERM END (FROM ROUTE VARIABLE) -->
         <p><strong>Term End:</strong> {{ term_end.strftime("%B %Y") }}</p>
+        <p><strong>Months:</strong> {{ loan.months }}</p>
+    </div>
 
-        <p><strong>No. of Months:</strong> {{ loan.months }}</p>
+    <!-- TOTAL PAID -->
+    <div class="header-card highlight">
+        <strong>Total Paid</strong>
+        <div class="value">₱{{ '%.2f'|format(total_paid) }}</div>
+    </div>
 
-        <p><strong>Total Payments:</strong> ₱{{ '%.2f'|format(total_paid) }}</p>
-
-        <p><strong>Outstanding Balance:</strong> ₱{{ '%.2f'|format(outstanding_balance) }}</p>
-
+    <!-- BALANCE -->
+    <div class="header-card highlight" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+        <strong>Outstanding Balance</strong>
+        <div class="value">₱{{ '%.2f'|format(outstanding_balance) }}</div>
     </div>
 
 </div>
