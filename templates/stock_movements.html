@@ -235,21 +235,40 @@
 
 <!-- PRINT SCRIPT -->
 <script>
+function formatDate(dateStr) {
+    if (!dateStr) return "";
+
+    const date = new Date(dateStr);
+    return date.toLocaleString('default', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
 function printReport() {
-    let monthText = "";
+    let text = "";
 
     const start = "{{ start_date }}";
     const end = "{{ end_date }}";
 
     if (start && end) {
-        monthText = `This is the inventory report from ${start} to ${end}`;
+        const formattedStart = formatDate(start);
+        const formattedEnd = formatDate(end);
+
+        text = `This is the inventory report from ${formattedStart} to ${formattedEnd}`;
     } else {
         const d = new Date();
-        monthText = `This is the inventory report for ${d.toLocaleString('default', { month: 'long' })} ${d.getFullYear()}`;
+        const formattedMonth = d.toLocaleString('default', {
+            month: 'long',
+            year: 'numeric'
+        });
+
+        text = `This is the inventory report for ${formattedMonth}`;
     }
 
     const header = document.createElement("h4");
-    header.innerText = monthText;
+    header.innerText = text;
     header.classList.add("text-center");
 
     document.body.prepend(header);
