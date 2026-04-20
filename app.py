@@ -3641,7 +3641,7 @@ def customer_ledger_view(loan_id):
         total_paid=total_paid,
         outstanding_balance=outstanding_balance,
         start_date=start_date,
-        term_end=term_end
+        term_end=term_end,
         relativedelta=relativedelta   # ✅ ADD THIS
     )
 
