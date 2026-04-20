@@ -14,7 +14,6 @@ body {
     padding: 25px;
 }
 
-/* CONTAINER */
 .ledger-box {
     background: white;
     padding: 25px;
@@ -22,7 +21,6 @@ body {
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
 }
 
-/* HEADER */
 .header {
     display: flex;
     justify-content: space-between;
@@ -34,7 +32,6 @@ body {
     font-size: 14px;
 }
 
-/* PAY BUTTON */
 .pay-btn {
     margin-top: 15px;
     background: #0ea5e9;
@@ -49,7 +46,6 @@ body {
     background: #0284c7;
 }
 
-/* TABLE */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -70,12 +66,10 @@ td {
     font-size: 14px;
 }
 
-/* COLORS */
 .green { color: green; }
 .red { color: red; }
 .orange { color: orange; }
 
-/* MODAL */
 .modal-step { display: none; }
 .modal-step.active { display: block; }
 
@@ -106,23 +100,14 @@ td {
 
     <div class="header-left">
 
-        <!-- ITEM NAME (updated from DB appliance_name) -->
+        <!-- Appliance Name -->
         <p><strong>Item Name:</strong> {{ loan.appliance_name }}</p>
 
-        <!-- DATE GRANTED (approved_on fallback applied) -->
-        <p>
-            <strong>Date Granted:</strong>
-            {{
-                (loan.approved_on if loan.approved_on else loan.applied_on)
-                .strftime("%B %d, %Y %I:%M %p")
-            }}
-        </p>
+        <!-- Date Granted (SAFE) -->
+        <p><strong>Date Granted:</strong> {{ loan.applied_on.strftime("%B %d, %Y %I:%M %p") }}</p>
 
-        <!-- TERM END (MONTH YEAR ONLY) -->
-        <p>
-            <strong>Term End:</strong>
-            {{ loan.term_end.strftime("%B %Y") if loan.term_end else '' }}
-        </p>
+        <!-- TERM END (FROM ROUTE VARIABLE) -->
+        <p><strong>Term End:</strong> {{ term_end.strftime("%B %Y") }}</p>
 
         <p><strong>No. of Months:</strong> {{ loan.months }}</p>
 
@@ -143,8 +128,7 @@ td {
     <th>Amount Due</th>
     <th>Paid</th>
     <th>Difference</th>
-    <th>Arrears</th>
-    <th>Running Balance</th>
+    <th>Balance</th>
     <th>Status</th>
     <th>Action</th>
 </tr>
@@ -152,11 +136,11 @@ td {
 {% for p in payments %}
 <tr>
 
-    <!-- MONTH NAME (April 2026 format) -->
+    <!-- Month Name -->
     <td>{{ p.month_name }}</td>
 
-    <!-- FULL DATE -->
-    <td>{{ p.due_date.strftime("%B %d, %Y %I:%M %p") }}</td>
+    <!-- Due Date -->
+    <td>{{ p.due_date.strftime("%B %d, %Y") }}</td>
 
     <td>₱{{ '%.2f'|format(p.amount_due) }}</td>
 
@@ -172,8 +156,6 @@ td {
         {% endif %}
     </td>
 
-    <td>₱{{ '%.2f'|format(p.arrears or 0) }}</td>
-
     <td>₱{{ '%.2f'|format(p.balance) }}</td>
 
     <td>
@@ -186,7 +168,6 @@ td {
         {% endif %}
     </td>
 
-    <!-- PAY BUTTON -->
     <td>
         {% if p.status != 'paid' %}
         <button class="pay-btn" data-bs-toggle="modal" data-bs-target="#payModal{{ p.id }}">
@@ -199,7 +180,7 @@ td {
 
 </tr>
 
-<!-- ===== MODAL (UNCHANGED - WORKING) ===== -->
+<!-- ===== PAYMENT MODAL ===== -->
 <div class="modal fade" id="payModal{{ p.id }}" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -214,7 +195,7 @@ td {
         <div class="modal-step step-1 active text-center">
             <div class="step-header">Step 1: Scan QR</div>
             <img src="{{ url_for('static', filename='uploads/qr.png') }}" class="qr-img mb-3">
-            <button class="btn btn-primary next-step" data-next="2" data-id="{{ p.id }}">Next</button>
+            <button class="btn btn-primary next-step" data-next="2">Next</button>
         </div>
 
         <div class="modal-step step-2 text-center">
@@ -232,7 +213,7 @@ td {
                 </form>
             {% endif %}
 
-            <button class="btn btn-primary mt-3 next-step" data-next="3" data-id="{{ p.id }}">Next</button>
+            <button class="btn btn-primary mt-3 next-step" data-next="3">Next</button>
         </div>
 
         <div class="modal-step step-3 text-center">

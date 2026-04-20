@@ -1754,119 +1754,218 @@ def approve_loan(loan_id):
             JOIN appliances a ON l.appliance_id = a.id
             WHERE l.id = %s
         """, (loan_id,))
+
         loan = cur.fetchone()
 
         if not loan:
+            cur.close()
+            conn.close()
             flash("Loan not found.", "danger")
             return redirect(url_for("admin_loans"))
 
-        if loan["status"] == "Approved":
-            flash("Loan already approved.", "info")
+        if loan['status'] == 'Approved':
+            cur.close()
+            conn.close()
+            flash("Loan is already approved.", "info")
             return redirect(url_for("admin_loans"))
 
         # ---------------- 2. CHECK STOCK ----------------
-        cur.execute("SELECT stock FROM appliances WHERE id=%s", (loan["appliance_id"],))
+        cur.execute("""
+            SELECT stock FROM appliances WHERE id=%s
+        """, (loan['appliance_id'],))
+
         appliance = cur.fetchone()
 
-        if not appliance or appliance["stock"] <= 0:
-            flash("Insufficient stock.", "danger")
+        if not appliance:
+            cur.close()
+            conn.close()
+            flash("Appliance not found.", "danger")
             return redirect(url_for("admin_loans"))
 
-        # ---------------- 3. DATE SETUP (IMPORTANT FIX) ----------------
-        approved_on = date.today()
-        term_end = approved_on + relativedelta(months=12)
+        if appliance['stock'] <= 0:
+            cur.close()
+            conn.close()
+            flash("Insufficient stock to approve this loan.", "danger")
+            return redirect(url_for("admin_loans"))
 
-        # ---------------- 4. UPDATE LOAN ----------------
+        # ---------------- 3. UPDATE LOAN ----------------
         cur.execute("""
-            UPDATE loans
-            SET status='Approved',
-                approved_on=%s,
-                term_end=%s
+            UPDATE loans SET status='Approved'
             WHERE id=%s
-        """, (approved_on, term_end, loan_id))
+        """, (loan_id,))
 
-        # ---------------- 5. UPDATE STOCK ----------------
+        # ---------------- 4. UPDATE STOCK ----------------
         quantity = 1
 
-        new_stock = appliance["stock"] - quantity
+        # get current stock again (safe practice)
+        cur.execute("""
+            SELECT stock FROM appliances WHERE id=%s
+        """, (loan['appliance_id'],))
+
+        current = cur.fetchone()
+        current_stock = current['stock']
+
+        new_stock = current_stock - quantity
 
         if new_stock < 0:
+            cur.close()
+            conn.close()
             flash("Stock cannot go below zero.", "danger")
             return redirect(url_for("admin_loans"))
 
         cur.execute("""
             UPDATE appliances
-            SET stock=%s
-            WHERE id=%s
-        """, (new_stock, loan["appliance_id"]))
+            SET stock = %s
+            WHERE id = %s
+        """, (new_stock, loan['appliance_id']))
 
-        # ---------------- 6. STOCK MOVEMENT ----------------
+        # ---------------- 5. STOCK MOVEMENT ----------------
+        # ---------------- 5. STOCK MOVEMENT ----------------
         cur.execute("""
             INSERT INTO stock_movements
             (appliance_id, movement_type, quantity, reference_note, movement_date)
             VALUES (%s, %s, %s, %s, NOW())
         """, (
-            loan["appliance_id"],
-            "stock_out",
+            loan['appliance_id'],
+            'stock_out',   # ✅ FIXED
             quantity,
             f"Loan Approved (Loan ID: {loan_id})"
         ))
 
-        # ---------------- 7. RESET PAYMENTS ----------------
-        cur.execute("DELETE FROM payments WHERE loan_id=%s", (loan_id,))
+        # ---------------- 6. DELETE OLD PAYMENTS ----------------
+        cur.execute("""
+            DELETE FROM payments WHERE loan_id=%s
+        """, (loan_id,))
 
-        # ---------------- 8. GENERATE SCHEDULE ----------------
-        amount = float(loan["amount"])
-        months = int(loan["months"]) or 1
+        # ---------------- 7. GENERATE SCHEDULE ----------------
+        amount = float(loan['amount'])
+        months = int(loan['months'])
+
+        if months <= 0:
+            months = 1  # safety fix
 
         monthly_payment = round(amount / months, 2)
+        start_date = date.today()
 
-        # FIRST DUE = NEXT MONTH AFTER APPROVAL
-        start_date = approved_on + relativedelta(months=1)
-
-        for i in range(months):
+        for i in range(1, months + 1):
             due_date = start_date + relativedelta(months=i)
 
             cur.execute("""
-                INSERT INTO payments
+                INSERT INTO payments 
                 (loan_id, month_no, amount_due, due_date, status)
                 VALUES (%s, %s, %s, %s, 'not_paid')
-            """, (loan_id, i + 1, monthly_payment, due_date))
+            """, (loan_id, i, monthly_payment, due_date))
 
         conn.commit()
 
-        # ---------------- 9. EMAIL ----------------
+        # ---------------- 8. EMAIL NOTIFICATION ----------------
         yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
+
+        subject = "Loan Application Approved 🎉"
 
         body = f"""
 Hello {loan['full_name']},
 
-Your loan has been APPROVED.
+Good news! 🎉
 
+Your loan for:
 Appliance: {loan['appliance_name']}
+
+Has been APPROVED.
+
 Amount: ₱{loan['amount']:.2f}
 Months: {loan['months']}
-Term End: {term_end.strftime('%B %d, %Y')}
+
+Your payment schedule is now available in your dashboard.
 
 Thank you,
 Greater RJ Appliance and Trading Corporation
         """
 
         yag.send(
-            to=loan["email"],
-            subject="Loan Approved 🎉",
+            to=loan['email'],
+            subject=subject,
             contents=body,
-            headers={"From": f"Greater RJ Appliance <{EMAIL_USER}>"}
+            headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
         )
 
         cur.close()
         conn.close()
 
-        flash("Loan approved successfully.", "success")
+        flash("Loan approved successfully, stock updated, schedule created, and email sent!", "success")
         return redirect(url_for("admin_loans"))
 
     except Exception as e:
         return f"Error approving loan: {str(e)}"
+
+
+from io import BytesIO
+from flask import send_file
+
+
+
+@app.route("/deny_loan/<int:loan_id>", methods=["POST"])
+def deny_loan(loan_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        # Get loan info
+        cur.execute("""
+            SELECT l.*, u.full_name, u.email, a.appliance_name
+            FROM loans l
+            JOIN users u ON l.user_id = u.id
+            JOIN appliances a ON l.appliance_id = a.id
+            WHERE l.id = %s
+        """, (loan_id,))
+
+        loan = cur.fetchone()
+
+        if not loan:
+            cur.close()
+            conn.close()
+            return "Loan not found", 404
+
+        # Update status
+        cur.execute("""
+            UPDATE loans SET status='Denied'
+            WHERE id=%s
+        """, (loan_id,))
+
+        conn.commit()
+
+        # EMAIL
+        yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
+
+        subject = "Loan Application Update"
+
+        body = f"""
+Hello {loan['full_name']},
+
+We regret to inform you that your loan for:
+
+Appliance: {loan['appliance_name']}
+
+Has been DENIED.
+
+Thank you,
+Greater RJ Appliance and Trading Corporation
+        """
+
+        yag.send(
+            to=loan['email'],
+            subject=subject,
+            contents=body,
+            headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
+        )
+
+        cur.close()
+        conn.close()
+
+        return redirect(url_for("admin_loans"))
+
+    except Exception as e:
+        return f"Error denying loan: {str(e)}"
 
 
 from io import BytesIO
