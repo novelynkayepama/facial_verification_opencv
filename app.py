@@ -1805,10 +1805,10 @@ def approve_loan(loan_id):
         new_stock = current_stock - quantity
 
         if new_stock < 0:
-        cur.close()
-        conn.close()
-        flash("Stock cannot go below zero.", "danger")
-        return redirect(url_for("admin_loans"))
+            cur.close()
+            conn.close()
+            flash("Stock cannot go below zero.", "danger")
+            return redirect(url_for("admin_loans"))
 
         cur.execute("""
             UPDATE appliances
