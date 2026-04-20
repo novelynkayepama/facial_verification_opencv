@@ -1793,16 +1793,27 @@ def approve_loan(loan_id):
 
         # ---------------- 4. UPDATE STOCK ----------------
         quantity = 1
+
+        # get current stock again (safe practice)
         cur.execute("""
-        UPDATE appliances
-        SET stock = stock - %s
-        WHERE id = %s
-        """, (quantity, loan['appliance_id']))
+            SELECT stock FROM appliances WHERE id=%s
+        """, (loan['appliance_id'],))
+
+        current = cur.fetchone()
+        current_stock = current['stock']
+
+        new_stock = current_stock - quantity
+
+        if new_stock < 0:
+        cur.close()
+        conn.close()
+        flash("Stock cannot go below zero.", "danger")
+        return redirect(url_for("admin_loans"))
 
         cur.execute("""
             UPDATE appliances
-            SET stock=%s
-            WHERE id=%s
+            SET stock = %s
+            WHERE id = %s
         """, (new_stock, loan['appliance_id']))
 
         # ---------------- 5. STOCK MOVEMENT ----------------
