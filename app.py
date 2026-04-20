@@ -3534,6 +3534,9 @@ def customer_ledger_user(user_id):
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
 @app.route("/customer/ledger/<int:loan_id>")
 def customer_ledger_view(loan_id):
 
@@ -3543,7 +3546,7 @@ def customer_ledger_view(loan_id):
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # ===== LOAN INFO =====
+    # ===== LOAN INFO (ALWAYS FRESH) =====
     cur.execute("""
         SELECT l.*, a.appliance_name
         FROM loans l
@@ -3557,7 +3560,10 @@ def customer_ledger_view(loan_id):
         conn.close()
         return "Loan not found", 404
 
+    # FORCE DATETIME SAFETY
     applied_on = loan["applied_on"]
+    if isinstance(applied_on, str):
+        applied_on = datetime.strptime(applied_on, "%Y-%m-%d %H:%M:%S")
 
     # ===== PAYMENTS =====
     cur.execute("""
@@ -3569,29 +3575,33 @@ def customer_ledger_view(loan_id):
     payments = cur.fetchall()
 
     # ===== CALCULATIONS =====
-    total_paid = sum(p["paid_amount"] or 0 for p in payments)
-    outstanding_balance = loan["amount"] - total_paid
-
-    running_balance = loan["amount"]
+    total_paid = 0
+    running_balance = float(loan["amount"])
 
     for p in payments:
-        paid = p["paid_amount"] or 0
-        due = p["amount_due"] or 0
 
-        # difference (same logic you used before)
+        paid = float(p["paid_amount"] or 0)
+        due = float(p["amount_due"] or 0)
+
+        total_paid += paid
+
+        # arrears / overpayment logic
         p["difference"] = paid - due
 
         # running balance
-        p["balance"] = running_balance - paid
-        running_balance = p["balance"]
+        running_balance -= paid
+        p["balance"] = running_balance
 
-        # ✅ MONTH NAME (Month Year only)
+        # ===== MONTH NAME (CORRECT OFFSET) =====
+        # first month = applied_on + 1 month
         p["month_name"] = (
-            applied_on + relativedelta(months=p["month_no"] - 1)
+            applied_on + relativedelta(months=p["month_no"])
         ).strftime("%B %Y")
 
-    # ===== TERM END (Month Year only) =====
-    term_end = applied_on + relativedelta(months=loan["months"])
+    # ===== TERM END (FIXED) =====
+    term_end = applied_on + relativedelta(months=int(loan["months"]))
+
+    outstanding_balance = float(loan["amount"]) - total_paid
 
     cur.close()
     conn.close()
