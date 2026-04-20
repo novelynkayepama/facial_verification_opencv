@@ -230,7 +230,7 @@ tr:hover {
                 Installment-Based Monitoring Platform
             </small>
         </div>
-                <button class="btn btn-primary no-print" onclick="window.print()">
+                <button class="btn btn-primary no-print" onclick="printReport()">
             <i class="fa-solid fa-print"></i> Print Report
         </button>
     </div>
@@ -238,7 +238,19 @@ tr:hover {
 </div>
 
 <div id="printArea">
+<div id="printHeader" class="text-center mb-3" style="display:none;">
+    <h5 id="reportTitle"></h5>
 
+    <p style="margin:5px 0; font-size:14px;">
+        <strong>Date Generated:</strong> <span id="dateGenerated"></span>
+    </p>
+
+    <p style="margin:5px 0; font-size:14px;">
+        <strong>Prepared By:</strong> <span id="preparedBy">System Administrator</span>
+    </p>
+
+    <hr>
+</div>
     <!-- Filter -->
     <div class="card">
         <h2>Filter Sales</h2>
@@ -404,6 +416,51 @@ new Chart(document.getElementById('yearlyChart').getContext('2d'), {
     }
 });
 </script>
+<script>
+function printReport() {
 
+    const selectedMonth = "{{ selected_month }}";
+    const selectedCategory = "{{ selected_category }}";
+
+    let monthText = "All Months";
+    let categoryText = "All Categories";
+
+    // Format Month
+    if (selectedMonth) {
+        const date = new Date(selectedMonth + "-01");
+        monthText = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+    }
+
+    // Format Category
+    if (selectedCategory) {
+        categoryText = selectedCategory;
+    }
+
+    // Report Title
+    const finalText = `This report presents the Monthly Collection for ${monthText} covering ${categoryText} appliances.`;
+
+    // Set Title
+    document.getElementById("reportTitle").innerText = finalText;
+
+    // Set Date Generated (today)
+    const today = new Date();
+    const formattedDate = today.toLocaleString('default', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    document.getElementById("dateGenerated").innerText = formattedDate;
+
+    // OPTIONAL: If you want dynamic user later
+    // document.getElementById("preparedBy").innerText = "{{ session['user_name'] }}";
+
+    const header = document.getElementById("printHeader");
+    header.style.display = "block";
+
+    window.print();
+
+    header.style.display = "none";
+}
+</script>
 </body>
 </html>
