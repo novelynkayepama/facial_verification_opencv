@@ -106,13 +106,23 @@ td {
 
     <div class="header-left">
 
+        <!-- ITEM NAME (updated from DB appliance_name) -->
         <p><strong>Item Name:</strong> {{ loan.appliance_name }}</p>
 
-        <!-- LONG DATE -->
-        <p><strong>Date Granted:</strong> {{ loan.applied_on.strftime("%B %d, %Y %I:%M %p") }}</p>
+        <!-- DATE GRANTED (approved_on fallback applied) -->
+        <p>
+            <strong>Date Granted:</strong>
+            {{
+                (loan.approved_on if loan.approved_on else loan.applied_on)
+                .strftime("%B %d, %Y %I:%M %p")
+            }}
+        </p>
 
         <!-- TERM END (MONTH YEAR ONLY) -->
-        <p><strong>Term End:</strong> {{ term_end.strftime("%B %Y") }}</p>
+        <p>
+            <strong>Term End:</strong>
+            {{ loan.term_end.strftime("%B %Y") if loan.term_end else '' }}
+        </p>
 
         <p><strong>No. of Months:</strong> {{ loan.months }}</p>
 
@@ -142,10 +152,10 @@ td {
 {% for p in payments %}
 <tr>
 
-    <!-- MONTH: MONTH YEAR FORMAT -->
+    <!-- MONTH NAME (April 2026 format) -->
     <td>{{ p.month_name }}</td>
 
-    <!-- FULL LONG DATE -->
+    <!-- FULL DATE -->
     <td>{{ p.due_date.strftime("%B %d, %Y %I:%M %p") }}</td>
 
     <td>₱{{ '%.2f'|format(p.amount_due) }}</td>
@@ -189,7 +199,7 @@ td {
 
 </tr>
 
-<!-- ===== MODAL (UNCHANGED) ===== -->
+<!-- ===== MODAL (UNCHANGED - WORKING) ===== -->
 <div class="modal fade" id="payModal{{ p.id }}" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">

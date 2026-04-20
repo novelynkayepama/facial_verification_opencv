@@ -1736,6 +1736,9 @@ def loan_face_success():
 
 
 
+from datetime import date
+from dateutil.relativedelta import relativedelta
+
 @app.route("/approve_loan/<int:loan_id>", methods=["POST"])
 def approve_loan(loan_id):
 
@@ -1751,145 +1754,115 @@ def approve_loan(loan_id):
             JOIN appliances a ON l.appliance_id = a.id
             WHERE l.id = %s
         """, (loan_id,))
-
         loan = cur.fetchone()
 
         if not loan:
-            cur.close()
-            conn.close()
             flash("Loan not found.", "danger")
             return redirect(url_for("admin_loans"))
 
-        if loan['status'] == 'Approved':
-            cur.close()
-            conn.close()
-            flash("Loan is already approved.", "info")
+        if loan["status"] == "Approved":
+            flash("Loan already approved.", "info")
             return redirect(url_for("admin_loans"))
 
         # ---------------- 2. CHECK STOCK ----------------
-        cur.execute("""
-            SELECT stock FROM appliances WHERE id=%s
-        """, (loan['appliance_id'],))
-
+        cur.execute("SELECT stock FROM appliances WHERE id=%s", (loan["appliance_id"],))
         appliance = cur.fetchone()
 
-        if not appliance:
-            cur.close()
-            conn.close()
-            flash("Appliance not found.", "danger")
+        if not appliance or appliance["stock"] <= 0:
+            flash("Insufficient stock.", "danger")
             return redirect(url_for("admin_loans"))
 
-        if appliance['stock'] <= 0:
-            cur.close()
-            conn.close()
-            flash("Insufficient stock to approve this loan.", "danger")
-            return redirect(url_for("admin_loans"))
+        # ---------------- 3. DATE SETUP (IMPORTANT FIX) ----------------
+        approved_on = date.today()
+        term_end = approved_on + relativedelta(months=12)
 
-        # ---------------- 3. UPDATE LOAN ----------------
+        # ---------------- 4. UPDATE LOAN ----------------
         cur.execute("""
-            UPDATE loans SET status='Approved'
+            UPDATE loans
+            SET status='Approved',
+                approved_on=%s,
+                term_end=%s
             WHERE id=%s
-        """, (loan_id,))
+        """, (approved_on, term_end, loan_id))
 
-        # ---------------- 4. UPDATE STOCK ----------------
+        # ---------------- 5. UPDATE STOCK ----------------
         quantity = 1
 
-        # get current stock again (safe practice)
-        cur.execute("""
-            SELECT stock FROM appliances WHERE id=%s
-        """, (loan['appliance_id'],))
-
-        current = cur.fetchone()
-        current_stock = current['stock']
-
-        new_stock = current_stock - quantity
+        new_stock = appliance["stock"] - quantity
 
         if new_stock < 0:
-            cur.close()
-            conn.close()
             flash("Stock cannot go below zero.", "danger")
             return redirect(url_for("admin_loans"))
 
         cur.execute("""
             UPDATE appliances
-            SET stock = %s
-            WHERE id = %s
-        """, (new_stock, loan['appliance_id']))
+            SET stock=%s
+            WHERE id=%s
+        """, (new_stock, loan["appliance_id"]))
 
-        # ---------------- 5. STOCK MOVEMENT ----------------
-        # ---------------- 5. STOCK MOVEMENT ----------------
+        # ---------------- 6. STOCK MOVEMENT ----------------
         cur.execute("""
             INSERT INTO stock_movements
             (appliance_id, movement_type, quantity, reference_note, movement_date)
             VALUES (%s, %s, %s, %s, NOW())
         """, (
-            loan['appliance_id'],
-            'stock_out',   # ✅ FIXED
+            loan["appliance_id"],
+            "stock_out",
             quantity,
             f"Loan Approved (Loan ID: {loan_id})"
         ))
 
-        # ---------------- 6. DELETE OLD PAYMENTS ----------------
-        cur.execute("""
-            DELETE FROM payments WHERE loan_id=%s
-        """, (loan_id,))
+        # ---------------- 7. RESET PAYMENTS ----------------
+        cur.execute("DELETE FROM payments WHERE loan_id=%s", (loan_id,))
 
-        # ---------------- 7. GENERATE SCHEDULE ----------------
-        amount = float(loan['amount'])
-        months = int(loan['months'])
-
-        if months <= 0:
-            months = 1  # safety fix
+        # ---------------- 8. GENERATE SCHEDULE ----------------
+        amount = float(loan["amount"])
+        months = int(loan["months"]) or 1
 
         monthly_payment = round(amount / months, 2)
-        start_date = date.today()
 
-        for i in range(1, months + 1):
+        # FIRST DUE = NEXT MONTH AFTER APPROVAL
+        start_date = approved_on + relativedelta(months=1)
+
+        for i in range(months):
             due_date = start_date + relativedelta(months=i)
 
             cur.execute("""
-                INSERT INTO payments 
+                INSERT INTO payments
                 (loan_id, month_no, amount_due, due_date, status)
                 VALUES (%s, %s, %s, %s, 'not_paid')
-            """, (loan_id, i, monthly_payment, due_date))
+            """, (loan_id, i + 1, monthly_payment, due_date))
 
         conn.commit()
 
-        # ---------------- 8. EMAIL NOTIFICATION ----------------
+        # ---------------- 9. EMAIL ----------------
         yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
-
-        subject = "Loan Application Approved 🎉"
 
         body = f"""
 Hello {loan['full_name']},
 
-Good news! 🎉
+Your loan has been APPROVED.
 
-Your loan for:
 Appliance: {loan['appliance_name']}
-
-Has been APPROVED.
-
 Amount: ₱{loan['amount']:.2f}
 Months: {loan['months']}
-
-Your payment schedule is now available in your dashboard.
+Term End: {term_end.strftime('%B %d, %Y')}
 
 Thank you,
 Greater RJ Appliance and Trading Corporation
         """
 
         yag.send(
-            to=loan['email'],
-            subject=subject,
+            to=loan["email"],
+            subject="Loan Approved 🎉",
             contents=body,
-            headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
+            headers={"From": f"Greater RJ Appliance <{EMAIL_USER}>"}
         )
 
         cur.close()
         conn.close()
 
-        flash("Loan approved successfully, stock updated, schedule created, and email sent!", "success")
+        flash("Loan approved successfully.", "success")
         return redirect(url_for("admin_loans"))
 
     except Exception as e:
@@ -3558,9 +3531,8 @@ def customer_ledger_user(user_id):
         return jsonify({"error": str(e)}), 500
 
 
-from flask import render_template, session, redirect, url_for
-import MySQLdb
 from dateutil.relativedelta import relativedelta
+from datetime import datetime
 
 @app.route("/customer/ledger/<int:loan_id>")
 def customer_ledger_view(loan_id):
@@ -3585,6 +3557,8 @@ def customer_ledger_view(loan_id):
         conn.close()
         return "Loan not found", 404
 
+    applied_on = loan["applied_on"]
+
     # ===== PAYMENTS =====
     cur.execute("""
         SELECT *
@@ -3602,17 +3576,22 @@ def customer_ledger_view(loan_id):
 
     for p in payments:
         paid = p["paid_amount"] or 0
+        due = p["amount_due"] or 0
 
-        p["difference"] = paid - (p["amount_due"] or 0)
+        # difference (same logic you used before)
+        p["difference"] = paid - due
+
+        # running balance
         p["balance"] = running_balance - paid
-
         running_balance = p["balance"]
 
-        # MONTH FORMAT: Month Year (e.g. April 2026)
-        p["month_name"] = (loan["applied_on"] + relativedelta(months=p["month_no"])).strftime("%B %Y")
+        # ✅ MONTH NAME (Month Year only)
+        p["month_name"] = (
+            applied_on + relativedelta(months=p["month_no"] - 1)
+        ).strftime("%B %Y")
 
-    # TERM END (Month Year only)
-    term_end = loan["applied_on"] + relativedelta(months=loan["months"])
+    # ===== TERM END (Month Year only) =====
+    term_end = applied_on + relativedelta(months=loan["months"])
 
     cur.close()
     conn.close()
@@ -3623,10 +3602,9 @@ def customer_ledger_view(loan_id):
         payments=payments,
         total_paid=total_paid,
         outstanding_balance=outstanding_balance,
-        term_end=term_end,
-        relativedelta=relativedelta   # ✅ ADD THIS
+        term_end=term_end
     )
-relativedelta=relativedelta   # ✅ ADD THIS
+
 @app.route("/customer/ledger")
 def customer_ledger_list():
 
