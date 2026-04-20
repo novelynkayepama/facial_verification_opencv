@@ -3558,6 +3558,12 @@ def customer_ledger_user(user_id):
         return jsonify({"error": str(e)}), 500
 
 
+from flask import render_template, session, redirect, url_for
+from dateutil.relativedelta import relativedelta
+from datetime import date
+import MySQLdb
+
+
 @app.route("/customer/ledger/<int:loan_id>")
 def customer_ledger_view(loan_id):
 
@@ -3567,19 +3573,21 @@ def customer_ledger_view(loan_id):
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # ===== LOAN INFO =====
+    # ================= LOAN INFO =================
     cur.execute("""
         SELECT l.*, a.appliance_name
         FROM loans l
         JOIN appliances a ON l.appliance_id = a.id
-        WHERE l.id = %s AND l.user_id = %s
-    """, (loan_id, session["user_id"]))
+        WHERE l.id = %s
+    """, (loan_id,))
     loan = cur.fetchone()
 
     if not loan:
-        return "Unauthorized", 403
+        cur.close()
+        conn.close()
+        return "Loan not found"
 
-    # ===== PAYMENTS =====
+    # ================= PAYMENTS =================
     cur.execute("""
         SELECT *
         FROM payments
@@ -3588,21 +3596,34 @@ def customer_ledger_view(loan_id):
     """, (loan_id,))
     payments = cur.fetchall()
 
-    # ===== CALCULATIONS =====
+    # ================= CALCULATIONS =================
     total_paid = sum(p["paid_amount"] or 0 for p in payments)
     outstanding_balance = loan["amount"] - total_paid
 
     running_balance = loan["amount"]
 
+    # ================= MONTH NAME GENERATION =================
+    start_date = loan["applied_on"].replace(day=1)
+
     for p in payments:
         paid = p["paid_amount"] or 0
         due = p["amount_due"] or 0
 
-        p["difference"] = paid - due
-        p["arrears_display"] = p["arrears"] if p["arrears"] else 0
+        # Running balance
+        p["balance"] = running_balance - paid
+        running_balance = p["balance"]
 
-        running_balance -= paid
-        p["balance"] = running_balance
+        # Difference / arrears logic
+        p["difference"] = paid - due
+
+        if paid < due:
+            p["arrears"] = due - paid
+        else:
+            p["arrears"] = 0
+
+        # ✅ MONTH NAME (FIXED HERE — NO JINJA ERROR ANYMORE)
+        month_date = start_date + relativedelta(months=p["month_no"] - 1)
+        p["month_name"] = month_date.strftime("%B %Y")
 
     cur.close()
     conn.close()
