@@ -70,16 +70,12 @@ td {
     font-size: 14px;
 }
 
-tr:hover {
-    background: #f9fafb;
-}
-
 /* COLORS */
 .green { color: green; }
 .red { color: red; }
 .orange { color: orange; }
 
-/* MODAL STEP UI (from your payments page) */
+/* MODAL */
 .modal-step { display: none; }
 .modal-step.active { display: block; }
 
@@ -94,7 +90,6 @@ tr:hover {
     border-radius: 10px;
 }
 
-/* PRINT */
 @media print {
     .no-print { display: none; }
     body { background: white; }
@@ -106,136 +101,144 @@ tr:hover {
 
 <div class="ledger-box">
 
-    <!-- ===== TOP INFO ===== -->
-    <div class="header">
+<!-- ===== TOP INFO ===== -->
+<div class="header">
 
-        <div class="header-left">
-            <p><strong>Item Name:</strong> {{ loan.appliance_name }}</p>
-            <p><strong>Date Granted:</strong> {{ loan.applied_on }}</p>
-            <p><strong>No. of Months:</strong> {{ loan.months }}</p>
-            <p><strong>Total Payments:</strong> ₱{{ '%.2f'|format(total_paid) }}</p>
-            <p><strong>Outstanding Balance:</strong> ₱{{ '%.2f'|format(outstanding_balance) }}</p>
-        </div>
+    <div class="header-left">
+
+        <p><strong>Item Name:</strong> {{ loan.appliance_name }}</p>
+
+        <!-- LONG DATE -->
+        <p><strong>Date Granted:</strong> {{ loan.applied_on.strftime("%B %d, %Y %I:%M %p") }}</p>
+
+        <!-- TERM END (MONTH YEAR ONLY) -->
+        <p><strong>Term End:</strong> {{ term_end.strftime("%B %Y") }}</p>
+
+        <p><strong>No. of Months:</strong> {{ loan.months }}</p>
+
+        <p><strong>Total Payments:</strong> ₱{{ '%.2f'|format(total_paid) }}</p>
+
+        <p><strong>Outstanding Balance:</strong> ₱{{ '%.2f'|format(outstanding_balance) }}</p>
 
     </div>
 
-    <!-- ===== PAYMENT TABLE ===== -->
-    <table>
-        <tr>
-            <th>Month</th>
-            <th>Due Date</th>
-            <th>Amount Due</th>
-            <th>Paid</th>
-            <th>Difference</th>
-            <th>Arrears</th>
-            <th>Running Balance</th>
-            <th>Status</th>
-            <th>Action</th>
-        </tr>
+</div>
 
-        {% for p in payments %}
-        <tr>
+<!-- ===== TABLE ===== -->
+<table>
 
-            <!-- Month Name Fix -->
-            <td>{{ p.month_name if p.month_name else p.month_no }}</td>
+<tr>
+    <th>Month</th>
+    <th>Due Date</th>
+    <th>Amount Due</th>
+    <th>Paid</th>
+    <th>Difference</th>
+    <th>Arrears</th>
+    <th>Running Balance</th>
+    <th>Status</th>
+    <th>Action</th>
+</tr>
 
-            <td>{{ p.due_date.strftime("%B %d, %Y") }}</td>
+{% for p in payments %}
+<tr>
 
-            <td>₱{{ '%.2f'|format(p.amount_due) }}</td>
+    <!-- MONTH: MONTH YEAR FORMAT -->
+    <td>{{ p.month_name }}</td>
 
-            <td>₱{{ '%.2f'|format(p.paid_amount or 0) }}</td>
+    <!-- FULL LONG DATE -->
+    <td>{{ p.due_date.strftime("%B %d, %Y %I:%M %p") }}</td>
 
-            <td>
-                {% if p.difference > 0 %}
-                    <span class="green">+{{ p.difference }}</span>
-                {% elif p.difference < 0 %}
-                    <span class="red">{{ p.difference }}</span>
-                {% else %}
-                    0
-                {% endif %}
-            </td>
+    <td>₱{{ '%.2f'|format(p.amount_due) }}</td>
 
-            <td>₱{{ '%.2f'|format(p.arrears or 0) }}</td>
+    <td>₱{{ '%.2f'|format(p.paid_amount or 0) }}</td>
 
-            <td>₱{{ '%.2f'|format(p.balance) }}</td>
+    <td>
+        {% if p.difference > 0 %}
+            <span class="green">+{{ "%.2f"|format(p.difference) }}</span>
+        {% elif p.difference < 0 %}
+            <span class="red">{{ "%.2f"|format(p.difference) }}</span>
+        {% else %}
+            0
+        {% endif %}
+    </td>
 
-            <td>
-                {% if p.status == 'paid' %}
-                    <span class="green">Paid</span>
-                {% elif p.status == 'overdue' %}
-                    <span class="red">Overdue</span>
-                {% else %}
-                    <span class="orange">{{ p.status }}</span>
-                {% endif %}
-            </td>
+    <td>₱{{ '%.2f'|format(p.arrears or 0) }}</td>
 
-            <!-- ===== PAY BUTTON ===== -->
-            <td>
-                {% if p.status != 'paid' %}
-                <button class="pay-btn" data-bs-toggle="modal" data-bs-target="#payModal{{ p.id }}">
-                    Pay Now
-                </button>
-                {% else %}
-                ✔ Paid
-                {% endif %}
-            </td>
+    <td>₱{{ '%.2f'|format(p.balance) }}</td>
 
-        </tr>
+    <td>
+        {% if p.status == 'paid' %}
+            <span class="green">Paid</span>
+        {% elif p.status == 'overdue' %}
+            <span class="red">Overdue</span>
+        {% else %}
+            <span class="orange">{{ p.status }}</span>
+        {% endif %}
+    </td>
 
-        <!-- ===== MODAL PER PAYMENT ===== -->
-        <div class="modal fade" id="payModal{{ p.id }}" tabindex="-1">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
+    <!-- PAY BUTTON -->
+    <td>
+        {% if p.status != 'paid' %}
+        <button class="pay-btn" data-bs-toggle="modal" data-bs-target="#payModal{{ p.id }}">
+            Pay Now
+        </button>
+        {% else %}
+        ✔ Paid
+        {% endif %}
+    </td>
 
-              <div class="modal-header">
-                <h5 class="modal-title">Pay Month {{ p.month_no }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
+</tr>
 
-              <div class="modal-body">
+<!-- ===== MODAL (UNCHANGED) ===== -->
+<div class="modal fade" id="payModal{{ p.id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
 
-                <!-- STEP 1 -->
-                <div class="modal-step step-1 active text-center">
-                    <div class="step-header">Step 1: Scan QR</div>
-                    <img src="{{ url_for('static', filename='uploads/qr.png') }}" class="qr-img mb-3">
-                    <button class="btn btn-primary next-step" data-next="2" data-id="{{ p.id }}">Next</button>
-                </div>
+      <div class="modal-header">
+        <h5 class="modal-title">Pay Month {{ p.month_no }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
 
-                <!-- STEP 2 -->
-                <div class="modal-step step-2 text-center">
-                    <div class="step-header">Step 2: Upload Proof</div>
+      <div class="modal-body">
 
-                    {% if p.payment_proof %}
-                        <p>Already uploaded</p>
-                        <a class="btn btn-info btn-sm" target="_blank"
-                           href="{{ url_for('static', filename='uploads/' + p.payment_proof) }}">
-                           View Proof
-                        </a>
-                    {% else %}
-                        <form action="{{ url_for('upload_payment', payment_id=p.id) }}" method="POST" enctype="multipart/form-data">
-                            <input type="file" name="payment_screenshot" class="form-control mb-2" required>
-                            <button class="btn btn-success btn-sm">Upload</button>
-                        </form>
-                    {% endif %}
-
-                    <button class="btn btn-primary mt-3 next-step" data-next="3" data-id="{{ p.id }}">Next</button>
-                </div>
-
-                <!-- STEP 3 -->
-                <div class="modal-step step-3 text-center">
-                    <div class="step-header">Done!</div>
-                    <p>Payment submitted for verification.</p>
-                    <button class="btn btn-primary" data-bs-dismiss="modal">Close</button>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
+        <div class="modal-step step-1 active text-center">
+            <div class="step-header">Step 1: Scan QR</div>
+            <img src="{{ url_for('static', filename='uploads/qr.png') }}" class="qr-img mb-3">
+            <button class="btn btn-primary next-step" data-next="2" data-id="{{ p.id }}">Next</button>
         </div>
 
-        {% endfor %}
-    </table>
+        <div class="modal-step step-2 text-center">
+            <div class="step-header">Step 2: Upload Proof</div>
+
+            {% if p.payment_proof %}
+                <p>Already uploaded</p>
+                <a class="btn btn-info btn-sm"
+                   href="{{ url_for('static', filename='uploads/' + p.payment_proof) }}"
+                   target="_blank">View Proof</a>
+            {% else %}
+                <form action="{{ url_for('upload_payment', payment_id=p.id) }}" method="POST" enctype="multipart/form-data">
+                    <input type="file" name="payment_screenshot" class="form-control mb-2" required>
+                    <button class="btn btn-success btn-sm">Upload</button>
+                </form>
+            {% endif %}
+
+            <button class="btn btn-primary mt-3 next-step" data-next="3" data-id="{{ p.id }}">Next</button>
+        </div>
+
+        <div class="modal-step step-3 text-center">
+            <div class="step-header">Done!</div>
+            <p>Payment submitted for verification.</p>
+            <button class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endfor %}
+</table>
 
 </div>
 

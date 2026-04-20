@@ -3559,10 +3559,8 @@ def customer_ledger_user(user_id):
 
 
 from flask import render_template, session, redirect, url_for
-from dateutil.relativedelta import relativedelta
-from datetime import datetime
 import MySQLdb
-
+from dateutil.relativedelta import relativedelta
 
 @app.route("/customer/ledger/<int:loan_id>")
 def customer_ledger_view(loan_id):
@@ -3573,7 +3571,7 @@ def customer_ledger_view(loan_id):
     conn = get_db_connection()
     cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # ================= LOAN INFO =================
+    # ===== LOAN INFO =====
     cur.execute("""
         SELECT l.*, a.appliance_name
         FROM loans l
@@ -3585,51 +3583,36 @@ def customer_ledger_view(loan_id):
     if not loan:
         cur.close()
         conn.close()
-        return "Loan not found"
+        return "Loan not found", 404
 
-    # ================= PAYMENTS =================
+    # ===== PAYMENTS =====
     cur.execute("""
         SELECT *
         FROM payments
         WHERE loan_id = %s
-        ORDER BY month_no ASC
+        ORDER BY month_no
     """, (loan_id,))
     payments = cur.fetchall()
 
-    # ================= TOTALS =================
+    # ===== CALCULATIONS =====
     total_paid = sum(p["paid_amount"] or 0 for p in payments)
     outstanding_balance = loan["amount"] - total_paid
 
     running_balance = loan["amount"]
 
-    # ================= DATE BASE =================
-    loan_date = loan["applied_on"]
-
-    # Month 1 = +1 month from approval
-    start_date = loan_date + relativedelta(months=1)
-
-    # Term end = +1 year from approval
-    term_end = loan_date + relativedelta(years=1)
-
-    # ================= PROCESS PAYMENTS =================
     for p in payments:
         paid = p["paid_amount"] or 0
-        due = p["amount_due"] or 0
 
-        # running balance
+        p["difference"] = paid - (p["amount_due"] or 0)
         p["balance"] = running_balance - paid
+
         running_balance = p["balance"]
 
-        # arrears / overpayment
-        p["difference"] = paid - due
-        p["arrears"] = due - paid if paid < due else 0
+        # MONTH FORMAT: Month Year (e.g. April 2026)
+        p["month_name"] = (loan["applied_on"] + relativedelta(months=p["month_no"])).strftime("%B %Y")
 
-        # ================= MONTH NAME (FIXED LOGIC) =================
-        month_date = start_date + relativedelta(months=p["month_no"] - 1)
-        p["month_name"] = month_date.strftime("%B %d, %Y")
-
-        # for modal safety (if missing)
-        p["id"] = p.get("id")
+    # TERM END (Month Year only)
+    term_end = loan["applied_on"] + relativedelta(months=loan["months"])
 
     cur.close()
     conn.close()
@@ -3640,11 +3623,10 @@ def customer_ledger_view(loan_id):
         payments=payments,
         total_paid=total_paid,
         outstanding_balance=outstanding_balance,
-        start_date=start_date,
         term_end=term_end,
         relativedelta=relativedelta   # ✅ ADD THIS
     )
-
+relativedelta=relativedelta   # ✅ ADD THIS
 @app.route("/customer/ledger")
 def customer_ledger_list():
 
