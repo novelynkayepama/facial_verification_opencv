@@ -1904,68 +1904,7 @@ from flask import send_file
 
 
 
-@app.route("/deny_loan/<int:loan_id>", methods=["POST"])
-def deny_loan(loan_id):
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(MySQLdb.cursors.DictCursor)
 
-        # Get loan info
-        cur.execute("""
-            SELECT l.*, u.full_name, u.email, a.appliance_name
-            FROM loans l
-            JOIN users u ON l.user_id = u.id
-            JOIN appliances a ON l.appliance_id = a.id
-            WHERE l.id = %s
-        """, (loan_id,))
-
-        loan = cur.fetchone()
-
-        if not loan:
-            cur.close()
-            conn.close()
-            return "Loan not found", 404
-
-        # Update status
-        cur.execute("""
-            UPDATE loans SET status='Denied'
-            WHERE id=%s
-        """, (loan_id,))
-
-        conn.commit()
-
-        # EMAIL
-        yag = yagmail.SMTP(EMAIL_USER, EMAIL_APP_PASSWORD)
-
-        subject = "Loan Application Update"
-
-        body = f"""
-Hello {loan['full_name']},
-
-We regret to inform you that your loan for:
-
-Appliance: {loan['appliance_name']}
-
-Has been DENIED.
-
-Thank you,
-Greater RJ Appliance and Trading Corporation
-        """
-
-        yag.send(
-            to=loan['email'],
-            subject=subject,
-            contents=body,
-            headers={"From": f"Greater RJ Appliance and Trading Corporation <{EMAIL_USER}>"}
-        )
-
-        cur.close()
-        conn.close()
-
-        return redirect(url_for("admin_loans"))
-
-    except Exception as e:
-        return f"Error denying loan: {str(e)}"
 
 
 from io import BytesIO
