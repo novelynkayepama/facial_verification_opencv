@@ -43,19 +43,14 @@ import MySQLdb
 from urllib.parse import urlparse
 
 def get_db_connection():
-    database_url = os.getenv("DATABASE_URL")
-
-    # =========================
-    # LOCAL (XAMPP fallback)
-    # =========================
-    if not database_url:
-        return MySQLdb.connect(
-            host="localhost",
-            user="root",
-            passwd="",
-            db="appliance_loan_db",
-            charset="utf8mb4"
-        )
+    return MySQLdb.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        passwd=os.getenv("DB_PASSWORD"),
+        db=os.getenv("DB_NAME"),
+        port=int(os.getenv("DB_PORT", 3306)),
+        charset="utf8mb4"
+    )
 
     # =========================
     # CLOUD (Render/Railway)
